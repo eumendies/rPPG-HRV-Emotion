@@ -1,10 +1,10 @@
-'''
+"""
 Author: Harryhht
 Date: 2022-01-06 10:28:39
 LastEditors: Eumendies
 LastEditTime: 2025-04-10 14:30:00
 Description:
-'''
+"""
 import numpy as np
 import seaborn as sns
 from obspy.signal.detrend import polynomial
@@ -29,6 +29,7 @@ class Series2rPPG:
         return polynomial(sig, order=2)
 
     def Signal_Preprocessing(self, rgbsig):
+        """去趋势，相当于平滑化"""
         data = np.array(rgbsig)
         data_r = polynomial(data[:, 0], order=2)
         data_g = polynomial(data[:, 1], order=2)
@@ -39,9 +40,9 @@ class Series2rPPG:
     def PBV(self, signal):
         sig_mean = np.mean(signal, axis=1)
 
-        sig_norm_r = signal[:, 0]/sig_mean[0]
-        sig_norm_g = signal[:, 1]/sig_mean[1]
-        sig_norm_b = signal[:, 2]/sig_mean[2]
+        sig_norm_r = signal[:, 0] / sig_mean[0]
+        sig_norm_g = signal[:, 1] / sig_mean[1]
+        sig_norm_b = signal[:, 2] / sig_mean[2]
 
         pbv_n = np.array(
             [np.std(sig_norm_r), np.std(sig_norm_g), np.std(sig_norm_b)])
@@ -57,16 +58,16 @@ class Series2rPPG:
 
         A = np.matmul(Ct, W)
         B = np.matmul(pbv.T, W)
-        bvp = A/B
+        bvp = A / B
         return bvp
 
     def CHROM(self, signal):
         X = signal
-        Xcomp = 3*X[:, 0] - 2*X[:, 1]
-        Ycomp = (1.5*X[:, 0])+X[:, 1]-(1.5*X[:, 2])
+        Xcomp = 3 * X[:, 0] - 2 * X[:, 1]
+        Ycomp = (1.5 * X[:, 0]) + X[:, 1] - (1.5 * X[:, 2])
         sX = np.std(Xcomp)
         sY = np.std(Ycomp)
-        alpha = sX/sY
+        alpha = sX / sY
         bvp = Xcomp - alpha * Ycomp
         return bvp
 
@@ -85,10 +86,10 @@ class Series2rPPG:
         return signal[:, 1]
 
     def GREEN_RED(self, signal):
-        return signal[:, 1]-signal[:, 0]
+        return signal[:, 1] - signal[:, 0]
 
     def cal_bpm(self, pre_bpm, spec, fps):
-        return pre_bpm*0.95+np.argmax(spec[:int(len(spec)/2)])/len(spec)*fps*60*0.05
+        return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * 60 * 0.05
 
     # Deconstruction
 

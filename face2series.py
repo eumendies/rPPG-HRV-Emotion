@@ -13,6 +13,7 @@ sns.set()
 
 class CAM2FACE:
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
+
     def __init__(self) -> None:
         # get face detector and 68 face landmark
         self.detector = dlib.get_frontal_face_detector()
@@ -33,18 +34,15 @@ class CAM2FACE:
         self.QUEUE_MAX = 256
         self.QUEUE_WINDOWS = 64
         self.Queue_rawframe = Queue(maxsize=3)
-        # self.Queue_RGBhist_left = Queue(maxsize=self.QUEUE_MAX)
-        # self.Queue_RGBhist_right = Queue(maxsize=self.QUEUE_MAX)
-        # self.Queue_RGBhist_fore = Queue(maxsize=self.QUEUE_MAX)
-        self.Queue_Sig_left = Queue(maxsize=self.QUEUE_MAX)  # 左脸颊特征队列
-        self.Queue_Sig_right = Queue(maxsize=self.QUEUE_MAX)    # 右脸颊特征队列
-        self.Queue_Sig_fore = Queue(maxsize=self.QUEUE_MAX)     # 额头特征队列
+        self.Queue_Sig_left = Queue(maxsize=self.QUEUE_MAX)  # 左脸颊信号队列
+        self.Queue_Sig_right = Queue(maxsize=self.QUEUE_MAX)  # 右脸颊信号队列
+        self.Queue_Sig_fore = Queue(maxsize=self.QUEUE_MAX)  # 额头信号队列
 
         self.Queue_Time = Queue(maxsize=self.QUEUE_WINDOWS)
 
         self.Ongoing = False
         self.Flag_face = False
-        self.Flag_Queue = False
+        self.Flag_Queue = False  # 队列是否已满，已满后才可视化信号
 
         self.frame_display = None
         self.face_mask = None
@@ -98,44 +96,26 @@ class CAM2FACE:
             try:
                 frame = self.Queue_rawframe.get_nowait()
             except Exception as e:
-                # print(e)
                 continue
 
             # get the roi of the frame (left/right)
             ROI_left, ROI_right, ROI_fore = self.ROI(frame)
-            # check ROI exsistance
             if ROI_left is not None and ROI_right is not None and ROI_fore is not None:
                 # produce rgb hist of mask (removed black)
                 self.hist_left = self.RGB_hist(ROI_left)
                 self.hist_right = self.RGB_hist(ROI_right)
                 self.hist_fore = self.RGB_hist(ROI_fore)
+                self.Flag_Queue = self.Queue_Sig_fore.full()
                 if self.Queue_Sig_left.full():
                     self.Sig_left = copy.copy(list(self.Queue_Sig_left.queue))
                     self.Queue_Sig_left.get_nowait()
-                else:
-                    self.Flag_Queue = False
                 if self.Queue_Sig_right.full():
-                    self.Sig_right = copy.copy(
-                        list(self.Queue_Sig_right.queue))
+                    self.Sig_right = copy.copy(list(self.Queue_Sig_right.queue))
                     self.Queue_Sig_right.get_nowait()
-                else:
-                    self.Flag_Queue = False
                 if self.Queue_Sig_fore.full():
                     self.Sig_fore = copy.copy(list(self.Queue_Sig_fore.queue))
                     self.Queue_Sig_fore.get_nowait()
-                    self.Flag_Queue = True
-                else:
-                    self.Flag_Queue = False
-                # if self.Queue_RGBhist_left.full():
-                #     self.Queue_RGBhist_left.get_nowait()
-                # if self.Queue_RGBhist_right.full():
-                #     self.Queue_RGBhist_right.get_nowait()
-                # if self.Queue_RGBhist_fore.full():
-                #     self.Queue_RGBhist_fore.get_nowait()
 
-                # self.Queue_RGBhist_left.put(rgb_left)
-                # self.Queue_RGBhist_right.put(rgb_right)
-                # self.Queue_RGBhist_fore.put(rgb_fore)
                 self.Queue_Sig_left.put_nowait(
                     self.Hist2Feature(self.hist_left))
                 self.Queue_Sig_right.put_nowait(
@@ -147,29 +127,19 @@ class CAM2FACE:
                 self.hist_left = None
                 self.hist_right = None
                 self.hist_fore = None
-                # self.Queue_RGBhist_left.put(None)
-                # self.Queue_RGBhist_right.put(None)
-                # self.Queue_RGBhist_fore.put(None)
                 self.Queue_Sig_left.queue.clear()
                 self.Queue_Sig_right.queue.clear()
                 self.Queue_Sig_fore.queue.clear()
 
-    # Get the markpoint of the faces
-
     def Marker(self, img):
+        """获取脸部关键点"""
         img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         faces = self.detector(img_gray)
         if len(faces) == 1:
             face = faces[0]
-            landmarks = [[p.x, p.y]
-                         for p in self.predictor(img, face).parts()]
-            # for idx, point in enumerate(self.landmarks):
-            #     pos = (point[0, 0], point[0, 1])
-            #     cv.circle(img, pos, 2, color=(0, 255, 0))
-        try:
+            landmarks = [[p.x, p.y] for p in self.predictor(img, face).parts()]
             return landmarks
-        except:
-            return None
+        return None
 
     # filter the image to ensure better performance
     def preprocess(self, img):
