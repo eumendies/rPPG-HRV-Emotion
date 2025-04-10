@@ -176,6 +176,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
     # Creates the specified Butterworth filter and applies it.
     def butterworth_filter(self, data, low, high, sample_rate, order=11):
+        """巴特沃斯滤波器"""
         nyquist_rate = sample_rate * 0.5
         low /= nyquist_rate
         high /= nyquist_rate
@@ -183,6 +184,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         return signal.lfilter(b, a, data)
 
     def process_signal(self, sig, bpm, sig_plot_widget, spec_plot_widget, pen):
+        """计算信号并展示"""
         if sig.size != 1:
             bvp_raw = self.Mode(sig)
             quality = 1 / (max(bvp_raw) - min(bvp_raw))
@@ -211,8 +213,10 @@ class MainWin(QMainWindow, Ui_MainWindow):
         if self.processor.series_class.Flag_Queue:
             self.bvp_fore_raw, self.quality_fore, self.bvp_fore, self.spc_fore, self.bpm_fore = (
                 self.process_signal(sig_fore, self.bpm_fore, self.Sig_f, self.Spec_f, (0, 255, 255)))
+
             self.bvp_left_raw, self.quality_left, self.bvp_left, self.spc_left, self.bpm_left = (
                 self.process_signal(sig_left, self.bpm_left, self.Sig_l, self.Spec_l, (255, 0, 255)))
+
             self.bvp_right_raw, self.quality_right, self.bvp_right, self.spc_right, self.bpm_right = (
                 self.process_signal(sig_right, self.bpm_right, self.Sig_r, self.Spec_r, (255, 255, 0)))
 

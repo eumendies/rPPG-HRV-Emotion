@@ -21,7 +21,6 @@ class Series2rPPG:
         self.series_class = CAM2FACE()
         self.Ongoing = True
 
-    # Start Processes
     def PROCESS_start(self):
         self.series_class.PROCESS_start()
 
@@ -83,15 +82,15 @@ class Series2rPPG:
         return bvp
 
     def GREEN(self, signal):
+        """使用G通道作为最终信号"""
         return signal[:, 1]
 
     def GREEN_RED(self, signal):
+        """使用G通道和R通道的线性组合作为最终信号"""
         return signal[:, 1] - signal[:, 0]
 
     def cal_bpm(self, pre_bpm, spec, fps):
         return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * 60 * 0.05
-
-    # Deconstruction
 
     def __del__(self):
         self.Ongoing = False

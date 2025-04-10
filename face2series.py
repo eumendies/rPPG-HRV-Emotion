@@ -64,23 +64,18 @@ class CAM2FACE:
     # Process: capture frame from camera in specific fps of the camera
     def capture_process(self):
         while self.Ongoing:
-            # time.sleep(0.02)
-            # get frame
             self.ret, frame = self.cam.read()
             self.frame_display = copy.copy(frame)
             if self.Queue_Time.full():
                 self.Queue_Time.get_nowait()
                 self.fps = 1 / np.mean(np.diff(np.array(list(self.Queue_Time.queue))))
 
-            # print(self.fps)
-            # self.time = time_now
             if not self.ret:
                 self.Ongoing = False
                 break
 
             # check if rawframe queue is full, if true then clear the last data
             if self.Queue_rawframe.full():
-                # print('Warning: Queue_rawframe full')
                 self.Queue_rawframe.get_nowait()
             else:
                 self.Queue_Time.put_nowait(time.time())
@@ -99,12 +94,12 @@ class CAM2FACE:
                 continue
 
             # get the roi of the frame (left/right)
-            ROI_left, ROI_right, ROI_fore = self.ROI(frame)
-            if ROI_left is not None and ROI_right is not None and ROI_fore is not None:
+            roi_left, roi_right, roi_fore = self.ROI(frame)
+            if roi_left is not None and roi_right is not None and roi_fore is not None:
                 # produce rgb hist of mask (removed black)
-                self.hist_left = self.RGB_hist(ROI_left)
-                self.hist_right = self.RGB_hist(ROI_right)
-                self.hist_fore = self.RGB_hist(ROI_fore)
+                self.hist_left = self.RGB_hist(roi_left)
+                self.hist_right = self.RGB_hist(roi_right)
+                self.hist_fore = self.RGB_hist(roi_fore)
                 self.Flag_Queue = self.Queue_Sig_fore.full()
                 if self.Queue_Sig_left.full():
                     self.Sig_left = copy.copy(list(self.Queue_Sig_left.queue))
