@@ -1,25 +1,21 @@
 '''
 Author: Harryhht
 Date: 2022-01-06 10:28:39
-LastEditors: Harryhht
-LastEditTime: 2022-02-20 16:31:34
+LastEditors: Eumendies
+LastEditTime: 2025-04-10 14:30:00
 Description:
 '''
-import copy
-from obspy.signal.detrend import polynomial, spline
-from scipy import signal
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-from face2series import CAM2FACE
-import threading
-from queue import Queue
 import numpy as np
 import seaborn as sns
-import time
+from obspy.signal.detrend import polynomial
+from sklearn.decomposition import PCA
+
+from face2series import CAM2FACE
+
 sns.set()
 
 
-class Series2rPPG():
+class Series2rPPG:
     def __init__(self) -> None:
         # load hist series from CAM
         self.series_class = CAM2FACE()

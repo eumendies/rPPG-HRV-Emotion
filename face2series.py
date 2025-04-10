@@ -1,18 +1,18 @@
+import copy
 import threading
 import time
 from queue import Queue
 
 import cv2 as cv
 import dlib
-import matplotlib.pyplot as plt
 import numpy as np
-import copy
 import seaborn as sns
 
 sns.set()
 
 
 class CAM2FACE:
+    """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
     def __init__(self) -> None:
         # get face detector and 68 face landmark
         self.detector = dlib.get_frontal_face_detector()
@@ -36,9 +36,9 @@ class CAM2FACE:
         # self.Queue_RGBhist_left = Queue(maxsize=self.QUEUE_MAX)
         # self.Queue_RGBhist_right = Queue(maxsize=self.QUEUE_MAX)
         # self.Queue_RGBhist_fore = Queue(maxsize=self.QUEUE_MAX)
-        self.Queue_Sig_left = Queue(maxsize=self.QUEUE_MAX)
-        self.Queue_Sig_right = Queue(maxsize=self.QUEUE_MAX)
-        self.Queue_Sig_fore = Queue(maxsize=self.QUEUE_MAX)
+        self.Queue_Sig_left = Queue(maxsize=self.QUEUE_MAX)  # 左脸颊特征队列
+        self.Queue_Sig_right = Queue(maxsize=self.QUEUE_MAX)    # 右脸颊特征队列
+        self.Queue_Sig_fore = Queue(maxsize=self.QUEUE_MAX)     # 额头特征队列
 
         self.Queue_Time = Queue(maxsize=self.QUEUE_WINDOWS)
 
@@ -72,8 +72,7 @@ class CAM2FACE:
             self.frame_display = copy.copy(frame)
             if self.Queue_Time.full():
                 self.Queue_Time.get_nowait()
-                self.fps = 1 / \
-                    np.mean(np.diff(np.array(list(self.Queue_Time.queue))))
+                self.fps = 1 / np.mean(np.diff(np.array(list(self.Queue_Time.queue))))
 
             # print(self.fps)
             # self.time = time_now
@@ -83,7 +82,7 @@ class CAM2FACE:
 
             # check if rawframe queue is full, if true then clear the last data
             if self.Queue_rawframe.full():
-                #print('Warning: Queue_rawframe full')
+                # print('Warning: Queue_rawframe full')
                 self.Queue_rawframe.get_nowait()
             else:
                 self.Queue_Time.put_nowait(time.time())
@@ -182,6 +181,7 @@ class CAM2FACE:
         img = self.preprocess(img)
         landmark = self.Marker(img)
 
+        # 左脸颊、右脸颊和额头区域的关键点的索引
         cheek_left = [1, 2, 3, 4, 48, 31, 28, 39]
         cheek_right = [15, 14, 14, 12, 54, 35, 28, 42]
         forehead = [69, 70, 71, 80, 72, 25, 24, 23, 22, 21, 20, 19, 18]
@@ -221,6 +221,8 @@ class CAM2FACE:
             mask_display = cv.bitwise_or(mask_display_left, mask_display_right)
             mask_display = cv.bitwise_or(mask_display, mask_display_fore)
             # mask_display = cv.fillPoly(mask_display,  [ pt = 0s_right], (0, 255, 0))
+
+            # 将掩膜和原图进行混合
             self.face_mask = cv.addWeighted(mask_display, 0.25, img, 1, 0)
 
             ROI_left = cv.bitwise_and(mask_left, img)
@@ -244,12 +246,13 @@ class CAM2FACE:
         b_hist[0] = 0
         g_hist[0] = 0
         r_hist[0] = 0
-        r_hist = r_hist/np.sum(r_hist)
-        g_hist = g_hist/np.sum(g_hist)
-        b_hist = b_hist/np.sum(b_hist)
+        r_hist = r_hist / np.sum(r_hist)
+        g_hist = g_hist / np.sum(g_hist)
+        b_hist = b_hist / np.sum(b_hist)
         return [r_hist, g_hist, b_hist]
 
     def Hist2Feature(self, hist):
+        """从RGB直方图中提取特征"""
         hist_r = hist[0]
         hist_g = hist[1]
         hist_b = hist[2]

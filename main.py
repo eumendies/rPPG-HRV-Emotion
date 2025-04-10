@@ -1,8 +1,8 @@
 '''
 Author: Harryhht
 Date: 2022-02-01 20:51:25
-LastEditors: Harryhht
-LastEditTime: 2022-02-21 02:02:50
+LastEditors: Eumendies
+LastEditTime: 2025-04-10 14:30:50
 Description: Main structure for the application
 '''
 
@@ -146,21 +146,10 @@ class mainwin(QMainWindow, Ui_MainWindow):
         self.Data_ShowRaw = False
 
     def DisplayImage(self):
-        # frame = self.processor.series_class.frame_display
         Mask = self.processor.series_class.face_mask
-        Mask = cv.ellipse(Mask, [320, 240], [80, 120], 0, 0, 360,
-                          [0, 255, 0], 1, cv.LINE_AA)
-        Mask = cv.circle(Mask, [320, 240], 2, [255, 0, 0], 2, cv.LINE_AA)
-        # if frame is not None:
-        #     img = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-        #     qimg = QImage(
-        #         img.data, img.shape[1], img.shape[0], QImage.Format_RGB888)
-        #     self.camera.setPixmap(QPixmap.fromImage(qimg))
         if Mask is not None:
-            # Mask = cv.resize(Mask, (331, 321))
             img = cv.cvtColor(Mask, cv.COLOR_BGR2RGB)
-            qimg = QImage(
-                img.data, img.shape[1], img.shape[0], QImage.Format_RGB888)
+            qimg = QImage(img.data, img.shape[1], img.shape[0], QImage.Format_RGB888)
 
             self.face.setPixmap(QPixmap.fromImage(qimg))
 
