@@ -22,7 +22,7 @@ from scipy import signal
 import numpy as np
 import cv2 as cv
 from series2rPPG import Series2rPPG
-from constants import RED_PEN, GREEN_PEN, BLUE_PEN
+from constants import RED_PEN, GREEN_PEN, BLUE_PEN, ONE_MINUTE
 
 MIN_HZ = 0.83  # 50 BPM - minimum allowed heart rate
 MAX_HZ = 2.5  # 150 BPM - maximum allowed heart rate
@@ -186,19 +186,19 @@ class MainWin(QMainWindow, Ui_MainWindow):
     def process_signal(self, sig, bpm, sig_plot_widget, spec_plot_widget, pen):
         """计算信号并展示"""
         if sig.size != 1:
-            bvp_raw = self.Mode(sig)
+            bvp_raw = self.Mode(sig)    # 将信号转换为bvp(blood volume pulse)信号，属于PPG信号
             quality = 1 / (max(bvp_raw) - min(bvp_raw))
             bvp_filtered = self.butterworth_filter(
                 self.processor.Signal_Preprocessing_single(bvp_raw), MIN_HZ, MAX_HZ,
                 self.processor.series_class.fps, order=5)
-            spc = np.abs(np.fft.fft(bvp_filtered))
+            spc = np.abs(np.fft.fft(bvp_filtered))  # 频域
             bpm = self.processor.cal_bpm(bpm, spc, self.processor.series_class.fps)
             if self.Data_ShowRaw:
                 sig_plot_widget.setData(bvp_raw, pen=pen)
             else:
                 sig_plot_widget.setData(bvp_filtered, pen=pen)
 
-            spec_plot_widget.setData(np.linspace(0, self.processor.series_class.fps / 2 * 60, int((len(spc) + 1) / 2)),
+            spec_plot_widget.setData(np.linspace(0, self.processor.series_class.fps / 2 * ONE_MINUTE, int((len(spc) + 1) / 2)),
                                      spc[:int((len(spc) + 1) / 2)], pen=pen)
             return bvp_raw, quality, bvp_filtered, spc, bpm
         else:

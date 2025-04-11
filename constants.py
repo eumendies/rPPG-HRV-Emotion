@@ -1,3 +1,4 @@
 RED_PEN = (255, 0, 0)
 GREEN_PEN = (0, 255, 0)
 BLUE_PEN = (0, 0, 255)
+ONE_MINUTE = 60

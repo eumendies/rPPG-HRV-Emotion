@@ -11,6 +11,7 @@ from obspy.signal.detrend import polynomial
 from sklearn.decomposition import PCA
 
 from face2series import CAM2FACE
+from constants import ONE_MINUTE
 
 sns.set()
 
@@ -90,7 +91,7 @@ class Series2rPPG:
         return signal[:, 1] - signal[:, 0]
 
     def cal_bpm(self, pre_bpm, spec, fps):
-        return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * 60 * 0.05
+        return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * ONE_MINUTE * 0.05
 
     def __del__(self):
         self.Ongoing = False
