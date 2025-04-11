@@ -244,6 +244,10 @@ class CAM2FACE:
         self.cam.release()
         cv.destroyAllWindows()
 
+    def get_process(self):
+        """收集数据进度"""
+        return self.Queue_Sig_fore.qsize() / self.QUEUE_MAX
+
 
 if __name__ == '__main__':
     cam2roi = CAM2FACE()

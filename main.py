@@ -252,7 +252,8 @@ class MainWin(QMainWindow, Ui_MainWindow):
             self.Sig_r.setData([0], [0])
             self.Spec_r.setData([0], [0])
             self.label.setText(
-                f"Fps:\t\t{self.processor.series_class.fps}\n收集数据中...")
+                f"Fps:\t\t{self.processor.series_class.fps}\n"
+                f"收集数据中:\t\t {100 * self.processor.series_class.get_process():.2f}%...")
 
     def closeEvent(self, a0):
         super().closeEvent(a0)
