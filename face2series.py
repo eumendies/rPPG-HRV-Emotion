@@ -1,4 +1,5 @@
 import copy
+import queue
 import threading
 import time
 from queue import Queue
@@ -11,14 +12,60 @@ import seaborn as sns
 sns.set()
 
 
+class NumberedFrame:
+    """带序号的帧数据"""
+
+    def __init__(self, frame, frame_count):
+        self.frame = frame
+        self.frame_count = frame_count
+        self.masked_face = None
+        self.hist_left = None
+        self.hist_right = None
+        self.hist_fore = None
+        self.mutex = threading.Lock()
+        self.hist_exists = threading.Condition(self.mutex)
+
+    def set_hist(self, hist_left, hist_right, hist_fore):
+        self.hist_left = hist_left
+        self.hist_right = hist_right
+        self.hist_fore = hist_fore
+
+    def set_masked_face(self, masked_face):
+        self.masked_face = masked_face
+
+
+class FrameQueue:
+    """帧序列，其中的帧按时间戳排序，每次取出时间戳最小的"""
+
+    def __init__(self, maxsize=0):
+        self.queue = queue.PriorityQueue(maxsize=maxsize)
+        self.allow_frame_count = 0  # 最后被取出的帧的序号，如果新put进来的帧小于该号，则直接丢弃
+        self.mutex = threading.Lock()
+
+    def get_frame(self) -> NumberedFrame | None:
+        if self.queue.empty():
+            return None
+        with self.mutex:
+            # 保证取帧和给allow_frame_count赋值两个操作称为原子操作
+            _, frame = self.queue.get()
+            self.allow_frame_count = frame.frame_count
+            return frame
+
+    def put_frame(self, frame: NumberedFrame):
+        with self.mutex:
+            if self.allow_frame_count < frame.frame_count:
+                self.queue.put((frame.frame_count, frame))
+
+
 class CAM2FACE:
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
 
-    def __init__(self) -> None:
+    def __init__(self, num_process_threads=4) -> None:
         # get face detector and 68 face landmark
-        self.detector = dlib.get_frontal_face_detector()
-        self.predictor = dlib.shape_predictor(
-            'data/shape_predictor_81_face_landmarks.dat')
+        self.num_process_threads = num_process_threads
+        self.detectors = [dlib.get_frontal_face_detector() for _ in range(num_process_threads)]
+        self.predictors = [dlib.shape_predictor('data/shape_predictor_81_face_landmarks.dat') for _ in
+                           range(num_process_threads)]
 
         # get frontal camera of computer and get fps
         self.cam = cv.VideoCapture(0)
@@ -26,113 +73,104 @@ class CAM2FACE:
             print('ERROR:  Unable to open webcam.  Verify that webcam is connected and try again.  Exiting.')
             self.cam.release()
             return
-        # self.fps = self.cam.get(cv.CAP_PROP_FPS)
-        self.fps = 20
-        # self.cam.set(cv.CAP_PROP_FPS, self.fps)
+        self.fps = self.cam.get(cv.CAP_PROP_FPS)
 
         # Initialize Queue for camera capture
         self.QUEUE_MAX = 256
         self.QUEUE_WINDOWS = 64
-        self.Queue_rawframe = Queue(maxsize=3)
-        self.Queue_Sig_left = Queue(maxsize=self.QUEUE_MAX)  # 左脸颊信号队列
-        self.Queue_Sig_right = Queue(maxsize=self.QUEUE_MAX)  # 右脸颊信号队列
-        self.Queue_Sig_fore = Queue(maxsize=self.QUEUE_MAX)  # 额头信号队列
+        self.queue_rawframe = Queue()
+        self.queue_sig_left = queue.PriorityQueue(maxsize=self.QUEUE_MAX)  # 左脸颊信号队列
+        self.queue_sig_right = queue.PriorityQueue(maxsize=self.QUEUE_MAX)  # 右脸颊信号队列
+        self.queue_sig_fore = queue.PriorityQueue(maxsize=self.QUEUE_MAX)  # 额头信号队列
 
-        self.Queue_Time = Queue(maxsize=self.QUEUE_WINDOWS)
+        self.queue_time = Queue(maxsize=self.QUEUE_WINDOWS)
+        self.mutex = threading.Lock()
 
-        self.Ongoing = False
-        self.Flag_face = False
-        self.Flag_Queue = False  # 队列是否已满，已满后才可视化信号
+        self.ongoing = False
+        self.data_collected = False  # 队列是否已满，已满后才可视化信号
 
-        self.frame_display = None
-        self.face_mask = None
+        # 多线程处理，使用优先队列保证处理后的帧有序
+        # TODO: 实际上仍可能有问题，比如线程1处理第1帧，线程2处理第2帧，
+        #  线程2连续处理完5帧后线程1才处理完第1帧，此时线程2的5帧可能已经被播放了，目前把迟到的帧丢弃
+        self.masked_face_queue = FrameQueue()
 
-        self.Sig_left = None
-        self.Sig_right = None
-        self.Sig_fore = None
+        self.sig_left = None
+        self.sig_right = None
+        self.sig_fore = None
 
     # Initialize process and start
 
     def PROCESS_start(self):
-        self.Ongoing = True
-        self.capture_process_ = threading.Thread(target=self.capture_process)
-        self.roi_cal_process_ = threading.Thread(target=self.roi_cal_process)
+        self.ongoing = True
+        self.capture_thread = threading.Thread(target=self.capture_process)
+        self.roi_cal_threads = [threading.Thread(target=self.roi_cal_process, args=(i,), daemon=True) for i in
+                                range(self.num_process_threads)]
 
-        self.capture_process_.start()
-        self.roi_cal_process_.start()
+        self.capture_thread.start()
+        for thread in self.roi_cal_threads:
+            thread.start()
 
     # Process: capture frame from camera in specific fps of the camera
     def capture_process(self):
-        while self.Ongoing:
-            self.ret, frame = self.cam.read()
-            self.frame_display = copy.copy(frame)
-            if self.Queue_Time.full():
-                self.Queue_Time.get_nowait()
-                self.fps = 1 / np.mean(np.diff(np.array(list(self.Queue_Time.queue))))
-
-            if not self.ret:
-                self.Ongoing = False
+        while self.ongoing:
+            ret, frame = self.cam.read()
+            if not ret:
+                self.ongoing = False
                 break
-
-            # check if rawframe queue is full, if true then clear the last data
-            if self.Queue_rawframe.full():
-                self.Queue_rawframe.get_nowait()
-            else:
-                self.Queue_Time.put_nowait(time.time())
-
-            try:
-                self.Queue_rawframe.put_nowait(frame)
-            except Exception as e:
-                pass
+            self.queue_rawframe.put(NumberedFrame(frame, time.time()))
 
     # Process: calculate roi from raw frame
-    def roi_cal_process(self):
-        while self.Ongoing:
-            try:
-                frame = self.Queue_rawframe.get_nowait()
-            except Exception as e:
-                continue
-
+    def roi_cal_process(self, thread_id):
+        while self.ongoing:
+            numbered_frame = self.queue_rawframe.get()
+            frame_count = numbered_frame.frame_count
             # get the roi of the frame (left/right)
-            roi_left, roi_right, roi_fore = self.ROI(frame)
+            detector = self.detectors[thread_id]
+            predictor = self.predictors[thread_id]
+            masked_face, roi_left, roi_right, roi_fore = self.ROI(numbered_frame, detector, predictor)
             if roi_left is not None and roi_right is not None and roi_fore is not None:
                 # produce rgb hist of mask (removed black)
-                self.hist_left = self.RGB_hist(roi_left)
-                self.hist_right = self.RGB_hist(roi_right)
-                self.hist_fore = self.RGB_hist(roi_fore)
-                self.Flag_Queue = self.Queue_Sig_fore.full()
-                if self.Queue_Sig_left.full():
-                    self.Sig_left = copy.copy(list(self.Queue_Sig_left.queue))
-                    self.Queue_Sig_left.get_nowait()
-                if self.Queue_Sig_right.full():
-                    self.Sig_right = copy.copy(list(self.Queue_Sig_right.queue))
-                    self.Queue_Sig_right.get_nowait()
-                if self.Queue_Sig_fore.full():
-                    self.Sig_fore = copy.copy(list(self.Queue_Sig_fore.queue))
-                    self.Queue_Sig_fore.get_nowait()
+                hist_left = self.RGB_hist(roi_left)
+                hist_right = self.RGB_hist(roi_right)
+                hist_fore = self.RGB_hist(roi_fore)
+                numbered_frame.set_masked_face(masked_face)
+                numbered_frame.set_hist(hist_left, hist_right, hist_fore)
+                self.masked_face_queue.put_frame(numbered_frame)
+                with self.mutex:
+                    self.data_collected = self.queue_sig_fore.full()
+                    if self.queue_sig_left.full():
+                        self.sig_left = [value for _, value in copy.copy(self.queue_sig_left.queue)]
+                        self.queue_sig_left.get_nowait()
+                    if self.queue_sig_right.full():
+                        self.sig_right = [value for _, value in copy.copy(self.queue_sig_right.queue)]
+                        self.queue_sig_right.get_nowait()
+                    if self.queue_sig_fore.full():
+                        self.sig_fore = [value for _, value in copy.copy(self.queue_sig_fore.queue)]
+                        self.queue_sig_fore.get_nowait()
 
-                self.Queue_Sig_left.put_nowait(
-                    self.Hist2Feature(self.hist_left))
-                self.Queue_Sig_right.put_nowait(
-                    self.Hist2Feature(self.hist_right))
-                self.Queue_Sig_fore.put_nowait(
-                    self.Hist2Feature(self.hist_fore))
+                    self.queue_sig_left.put_nowait((frame_count, self.Hist2Feature(hist_left)))
+                    self.queue_sig_right.put_nowait((frame_count, self.Hist2Feature(hist_right)))
+                    self.queue_sig_fore.put_nowait((frame_count, self.Hist2Feature(hist_fore)))
 
+                    # 计算处理帧率
+                    if self.queue_time.full():
+                        self.queue_time.get_nowait()
+                    self.queue_time.put_nowait(time.time())
+                    if self.queue_time.full():
+                        self.fps = 1 / np.mean(np.diff(np.array(list(self.queue_time.queue))))  # 时间的一阶差分的平均值的倒数为fps
             else:
-                self.hist_left = None
-                self.hist_right = None
-                self.hist_fore = None
-                self.Queue_Sig_left.queue.clear()
-                self.Queue_Sig_right.queue.clear()
-                self.Queue_Sig_fore.queue.clear()
+                print("No face detected")
+                self.queue_sig_left.queue.clear()
+                self.queue_sig_right.queue.clear()
+                self.queue_sig_fore.queue.clear()
 
-    def Marker(self, img):
+    def Marker(self, img, detector, predictor):
         """获取脸部关键点"""
         img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        faces = self.detector(img_gray)
+        faces = detector(img_gray)
         if len(faces) == 1:
             face = faces[0]
-            landmarks = [[p.x, p.y] for p in self.predictor(img, face).parts()]
+            landmarks = [[p.x, p.y] for p in predictor(img, face).parts()]
             return landmarks
         return None
 
@@ -142,9 +180,14 @@ class CAM2FACE:
 
     # Draw the ROI the image
     # ROI: left cheek and right cheek
-    def ROI(self, img):
+    def ROI(self, numbered_frame: NumberedFrame, detector, predictor):
+        img = numbered_frame.frame
+        img = cv.resize(img, (1080, 720))  # TODO: 缩放图像减小计算量，需要先判断摄像头分辨率
         img = self.preprocess(img)
-        landmark = self.Marker(img)
+        landmark = self.Marker(img, detector, predictor)
+
+        if landmark is None:
+            return None, None, None, None
 
         # 左脸颊、右脸颊和额头区域的关键点的索引
         cheek_left = [1, 2, 3, 4, 48, 31, 28, 39]
@@ -154,9 +197,7 @@ class CAM2FACE:
         mask_left = np.zeros(img.shape, np.uint8)
         mask_right = np.zeros(img.shape, np.uint8)
         mask_fore = np.zeros(img.shape, np.uint8)
-        mask_display = np.zeros(img.shape, np.uint8)
         try:
-            self.Flag_face = True
             pts_left = np.array(
                 [landmark[i] for i in cheek_left], np.int32).reshape((-1, 1, 2))
             pts_right = np.array(
@@ -188,17 +229,15 @@ class CAM2FACE:
             # mask_display = cv.fillPoly(mask_display,  [ pt = 0s_right], (0, 255, 0))
 
             # 将掩膜和原图进行混合
-            self.face_mask = cv.addWeighted(mask_display, 0.25, img, 1, 0)
+            masked_face = cv.addWeighted(mask_display, 0.25, img, 1, 0)
 
             ROI_left = cv.bitwise_and(mask_left, img)
             ROI_right = cv.bitwise_and(mask_right, img)
             ROI_fore = cv.bitwise_and(mask_fore, img)
-            return ROI_left, ROI_right, ROI_fore
+            return masked_face, ROI_left, ROI_right, ROI_fore
 
         except Exception as e:
-            self.face_mask = img
-            self.Flag_face = False
-            return None, None, None
+            return None, None, None, None
 
     # Cal hist of roi
     def RGB_hist(self, roi):
@@ -240,13 +279,13 @@ class CAM2FACE:
     # Deconstruction
 
     def __del__(self):
-        self.Ongoing = False
+        self.ongoing = False
         self.cam.release()
         cv.destroyAllWindows()
 
     def get_process(self):
         """收集数据进度"""
-        return self.Queue_Sig_fore.qsize() / self.QUEUE_MAX
+        return self.queue_sig_fore.qsize() / self.QUEUE_MAX
 
 
 if __name__ == '__main__':

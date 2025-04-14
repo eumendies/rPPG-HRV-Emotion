@@ -106,17 +106,12 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
         # 用于更新画面的定时器
         self.TIMER_Frame = QTimer()
-        self.TIMER_Frame.setInterval(100)
+        self.TIMER_Frame.setInterval(30)
         self.TIMER_Frame.start()
-
-        # 用于更新直方图的定时器
-        self.TIMER_Hist = QTimer()
-        self.TIMER_Hist.setInterval(100)
-        self.TIMER_Hist.start()
 
         # 用于更新信号的定时器
         self.TIMER_SIGNAL = QTimer()
-        self.TIMER_SIGNAL.setInterval(100)
+        self.TIMER_SIGNAL.setInterval(30)
         self.TIMER_SIGNAL.start()
 
         self.bpm_fore = 60
@@ -132,8 +127,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.slot_init()
 
     def slot_init(self):
-        self.TIMER_Frame.timeout.connect(self.DisplayImage)
-        self.TIMER_Hist.timeout.connect(self.display_hist)
+        self.TIMER_Frame.timeout.connect(self.display_image_and_hist)
         self.TIMER_SIGNAL.timeout.connect(self.display_signal)
         self.comboBox.activated[str].connect(self.Button_ChangeMode)
         self.Button_RawTrue.clicked.connect(self.Button_Data_RawTrue)
@@ -148,15 +142,21 @@ class MainWin(QMainWindow, Ui_MainWindow):
     def Button_Data_RawFalse(self):
         self.Data_ShowRaw = False
 
-    def DisplayImage(self):
+    def display_image_and_hist(self):
         """展示前置摄像头画面"""
-        mask = self.processor.series_class.face_mask
-        if mask is not None:
-            img = cv.cvtColor(mask, cv.COLOR_BGR2RGB)
+        try:
+            numbered_frame = self.processor.series_class.masked_face_queue.get_frame()
+        except Exception as e:
+            print(e)
+            return
+        if numbered_frame is not None:
+            masked_face = numbered_frame.masked_face
+            img = cv.cvtColor(masked_face, cv.COLOR_BGR2RGB)
             qimg = QImage(img.data, img.shape[1], img.shape[0], QImage.Format_RGB888)
             self.face.setPixmap(QPixmap.fromImage(qimg))
+            self.display_hist(numbered_frame.hist_left, numbered_frame.hist_right, numbered_frame.hist_fore)
 
-    def display_hist(self):
+    def display_hist(self, hist_left, hist_right, hist_fore):
         """展示直方图数据"""
         def set_hist_data(hist, hist_r, hist_g, hist_b):
             if hist.size != 1:
@@ -167,9 +167,9 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 hist_r.clear()
                 hist_g.clear()
                 hist_b.clear()
-        hist_fore = np.array(self.processor.series_class.hist_fore)
-        hist_left = np.array(self.processor.series_class.hist_left)
-        hist_right = np.array(self.processor.series_class.hist_right)
+        hist_fore = np.array(hist_fore)
+        hist_left = np.array(hist_left)
+        hist_right = np.array(hist_right)
         set_hist_data(hist_fore, self.Hist_fore_r, self.Hist_fore_g, self.Hist_fore_b)
         set_hist_data(hist_left, self.Hist_left_r, self.Hist_left_g, self.Hist_left_b)
         set_hist_data(hist_right, self.Hist_right_r, self.Hist_right_g, self.Hist_right_b)
@@ -207,10 +207,10 @@ class MainWin(QMainWindow, Ui_MainWindow):
             return None, None, None, None, bpm
 
     def display_signal(self):
-        sig_fore = np.array(self.processor.series_class.Sig_fore)
-        sig_left = np.array(self.processor.series_class.Sig_left)
-        sig_right = np.array(self.processor.series_class.Sig_right)
-        if self.processor.series_class.Flag_Queue:
+        sig_fore = np.array(self.processor.series_class.sig_fore)
+        sig_left = np.array(self.processor.series_class.sig_left)
+        sig_right = np.array(self.processor.series_class.sig_right)
+        if self.processor.series_class.data_collected:
             self.bvp_fore_raw, self.quality_fore, self.bvp_fore, self.spc_fore, self.bpm_fore = (
                 self.process_signal(sig_fore, self.bpm_fore, self.Sig_f, self.Spec_f, (0, 255, 255)))
 

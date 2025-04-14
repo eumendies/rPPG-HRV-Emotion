@@ -1,7 +1,9 @@
-import cv2
-import numpy as np
-import dlib
+import queue
 import time
+
+import cv2
+import dlib
+import numpy as np
 from scipy import signal
 
 # Constants
@@ -348,4 +350,20 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # import neurokit2 as nk
+    #
+    # # Generate 15 seconds of PPG signal (recorded at 250 samples/second)
+    # ppg = nk.ppg_simulate(duration=15, sampling_rate=250, heart_rate=70)
+    #
+    # # Process it
+    # signals, info = nk.ppg_process(ppg, sampling_rate=250)
+    #
+    # # Visualize the processing
+    # fig = nk.ppg_plot(signals, info, static=False)
+    # fig.show()
+    queue = queue.PriorityQueue()
+    queue.put((0, [1,2,3]))
+    queue.put((1, [2,3,4]))
+    q = queue.queue
+    result = [value for (priority, value) in q]
+    print(result)
