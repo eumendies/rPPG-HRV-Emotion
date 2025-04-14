@@ -17,18 +17,10 @@ sns.set()
 
 
 class Series2rPPG:
-    def __init__(self) -> None:
-        # load hist series from CAM
-        self.series_class = CAM2FACE()
-        self.Ongoing = True
-
-    def PROCESS_start(self):
-        self.series_class.PROCESS_start()
-
-    def Signal_Preprocessing_single(self, sig):
+    def signal_preprocessing_single(self, sig):
         return polynomial(sig, order=2)
 
-    def Signal_Preprocessing(self, rgbsig):
+    def signal_preprocessing(self, rgbsig):
         """去趋势，相当于平滑化"""
         data = np.array(rgbsig)
         data_r = polynomial(data[:, 0], order=2)
@@ -92,10 +84,6 @@ class Series2rPPG:
 
     def cal_bpm(self, pre_bpm, spec, fps):
         return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * ONE_MINUTE * 0.05
-
-    def __del__(self):
-        self.Ongoing = False
-        self.series_class.__del__()
 
 
 if __name__ == "__main__":

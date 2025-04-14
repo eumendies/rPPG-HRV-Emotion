@@ -22,8 +22,6 @@ class NumberedFrame:
         self.hist_left = None
         self.hist_right = None
         self.hist_fore = None
-        self.mutex = threading.Lock()
-        self.hist_exists = threading.Condition(self.mutex)
 
     def set_hist(self, hist_left, hist_right, hist_fore):
         self.hist_left = hist_left
@@ -76,7 +74,7 @@ class CAM2FACE:
         self.fps = self.cam.get(cv.CAP_PROP_FPS)
 
         # Initialize Queue for camera capture
-        self.QUEUE_MAX = 256
+        self.QUEUE_MAX = 1024
         self.QUEUE_WINDOWS = 64
         self.queue_rawframe = Queue()
         self.queue_sig_left = queue.PriorityQueue(maxsize=self.QUEUE_MAX)  # 左脸颊信号队列
@@ -130,9 +128,9 @@ class CAM2FACE:
             masked_face, roi_left, roi_right, roi_fore = self.ROI(numbered_frame, detector, predictor)
             if roi_left is not None and roi_right is not None and roi_fore is not None:
                 # produce rgb hist of mask (removed black)
-                hist_left = self.RGB_hist(roi_left)
-                hist_right = self.RGB_hist(roi_right)
-                hist_fore = self.RGB_hist(roi_fore)
+                hist_left = self.rgb_hist(roi_left)
+                hist_right = self.rgb_hist(roi_right)
+                hist_fore = self.rgb_hist(roi_fore)
                 numbered_frame.set_masked_face(masked_face)
                 numbered_frame.set_hist(hist_left, hist_right, hist_fore)
                 self.masked_face_queue.put_frame(numbered_frame)
@@ -148,9 +146,9 @@ class CAM2FACE:
                         self.sig_fore = [value for _, value in copy.copy(self.queue_sig_fore.queue)]
                         self.queue_sig_fore.get_nowait()
 
-                    self.queue_sig_left.put_nowait((frame_count, self.Hist2Feature(hist_left)))
-                    self.queue_sig_right.put_nowait((frame_count, self.Hist2Feature(hist_right)))
-                    self.queue_sig_fore.put_nowait((frame_count, self.Hist2Feature(hist_fore)))
+                    self.queue_sig_left.put_nowait((frame_count, self.hist2feature(hist_left)))
+                    self.queue_sig_right.put_nowait((frame_count, self.hist2feature(hist_right)))
+                    self.queue_sig_fore.put_nowait((frame_count, self.hist2feature(hist_fore)))
 
                     # 计算处理帧率
                     if self.queue_time.full():
@@ -164,7 +162,7 @@ class CAM2FACE:
                 self.queue_sig_right.queue.clear()
                 self.queue_sig_fore.queue.clear()
 
-    def Marker(self, img, detector, predictor):
+    def detect_landmarks(self, img, detector, predictor):
         """获取脸部关键点"""
         img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         faces = detector(img_gray)
@@ -184,7 +182,7 @@ class CAM2FACE:
         img = numbered_frame.frame
         img = cv.resize(img, (1080, 720))  # TODO: 缩放图像减小计算量，需要先判断摄像头分辨率
         img = self.preprocess(img)
-        landmark = self.Marker(img, detector, predictor)
+        landmark = self.detect_landmarks(img, detector, predictor)
 
         if landmark is None:
             return None, None, None, None
@@ -240,7 +238,7 @@ class CAM2FACE:
             return None, None, None, None
 
     # Cal hist of roi
-    def RGB_hist(self, roi):
+    def rgb_hist(self, roi):
         b_hist = cv.calcHist([roi], [0], None, [256], [0, 256])
         g_hist = cv.calcHist([roi], [1], None, [256], [0, 256])
         r_hist = cv.calcHist([roi], [2], None, [256], [0, 256])
@@ -255,7 +253,7 @@ class CAM2FACE:
         b_hist = b_hist / np.sum(b_hist)
         return [r_hist, g_hist, b_hist]
 
-    def Hist2Feature(self, hist):
+    def hist2feature(self, hist):
         """从RGB直方图中提取特征"""
         hist_r = hist[0]
         hist_g = hist[1]

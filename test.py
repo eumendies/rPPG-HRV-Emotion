@@ -350,20 +350,11 @@ def main():
 
 
 if __name__ == '__main__':
-    # import neurokit2 as nk
-    #
-    # # Generate 15 seconds of PPG signal (recorded at 250 samples/second)
-    # ppg = nk.ppg_simulate(duration=15, sampling_rate=250, heart_rate=70)
-    #
-    # # Process it
-    # signals, info = nk.ppg_process(ppg, sampling_rate=250)
-    #
-    # # Visualize the processing
-    # fig = nk.ppg_plot(signals, info, static=False)
-    # fig.show()
-    queue = queue.PriorityQueue()
-    queue.put((0, [1,2,3]))
-    queue.put((1, [2,3,4]))
-    q = queue.queue
-    result = [value for (priority, value) in q]
-    print(result)
+    import neurokit2 as nk
+    import matplotlib.pyplot as plt
+    plt.rc('font', size=8)
+    data = nk.data("bio_resting_5min_100hz")
+    ecg_cleaned = nk.ecg_clean(data["ECG"], sampling_rate=100)
+    peaks, info = nk.ecg_peaks(ecg_cleaned, sampling_rate=100, correct_artifacts=True)
+    hrv_indices = nk.hrv(peaks, sampling_rate=100, show=True)
+    print(hrv_indices)

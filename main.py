@@ -7,6 +7,8 @@ Description: Main structure for the application
 """
 
 import sys
+import time
+
 from mainwindow import Ui_MainWindow
 
 from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication
@@ -22,6 +24,7 @@ from scipy import signal
 import numpy as np
 import cv2 as cv
 from series2rPPG import Series2rPPG
+from face2series import CAM2FACE
 from constants import RED_PEN, GREEN_PEN, BLUE_PEN, ONE_MINUTE
 
 MIN_HZ = 0.83  # 50 BPM - minimum allowed heart rate
@@ -102,7 +105,8 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
         self.face.setScaledContents(True)
         self.processor = Series2rPPG()
-        self.processor.PROCESS_start()
+        self.series_class = CAM2FACE()
+        self.series_class.PROCESS_start()
 
         # 用于更新画面的定时器
         self.TIMER_Frame = QTimer()
@@ -145,7 +149,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
     def display_image_and_hist(self):
         """展示前置摄像头画面"""
         try:
-            numbered_frame = self.processor.series_class.masked_face_queue.get_frame()
+            numbered_frame = self.series_class.masked_face_queue.get_frame()
         except Exception as e:
             print(e)
             return
@@ -189,16 +193,16 @@ class MainWin(QMainWindow, Ui_MainWindow):
             bvp_raw = self.Mode(sig)    # 将信号转换为bvp(blood volume pulse)信号，属于PPG信号
             quality = 1 / (max(bvp_raw) - min(bvp_raw))
             bvp_filtered = self.butterworth_filter(
-                self.processor.Signal_Preprocessing_single(bvp_raw), MIN_HZ, MAX_HZ,
-                self.processor.series_class.fps, order=5)
+                self.processor.signal_preprocessing_single(bvp_raw), MIN_HZ, MAX_HZ,
+                self.series_class.fps, order=5)
             spc = np.abs(np.fft.fft(bvp_filtered))  # 频域
-            bpm = self.processor.cal_bpm(bpm, spc, self.processor.series_class.fps)
+            bpm = self.processor.cal_bpm(bpm, spc, self.series_class.fps)
             if self.Data_ShowRaw:
                 sig_plot_widget.setData(bvp_raw, pen=pen)
             else:
                 sig_plot_widget.setData(bvp_filtered, pen=pen)
 
-            spec_plot_widget.setData(np.linspace(0, self.processor.series_class.fps / 2 * ONE_MINUTE, int((len(spc) + 1) / 2)),
+            spec_plot_widget.setData(np.linspace(0, self.series_class.fps / 2 * ONE_MINUTE, int((len(spc) + 1) / 2)),
                                      spc[:int((len(spc) + 1) / 2)], pen=pen)
             return bvp_raw, quality, bvp_filtered, spc, bpm
         else:
@@ -207,10 +211,10 @@ class MainWin(QMainWindow, Ui_MainWindow):
             return None, None, None, None, bpm
 
     def display_signal(self):
-        sig_fore = np.array(self.processor.series_class.sig_fore)
-        sig_left = np.array(self.processor.series_class.sig_left)
-        sig_right = np.array(self.processor.series_class.sig_right)
-        if self.processor.series_class.data_collected:
+        sig_fore = np.array(self.series_class.sig_fore)
+        sig_left = np.array(self.series_class.sig_left)
+        sig_right = np.array(self.series_class.sig_right)
+        if self.series_class.data_collected:
             self.bvp_fore_raw, self.quality_fore, self.bvp_fore, self.spc_fore, self.bpm_fore = (
                 self.process_signal(sig_fore, self.bpm_fore, self.Sig_f, self.Spec_f, (0, 255, 255)))
 
@@ -234,7 +238,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 self.bpm_avg = 60
 
             Label_Text = (
-                f"Fps: \t\t{self.processor.series_class.fps}\n"
+                f"Fps: \t\t{self.series_class.fps}\n"
                 f"前额测量心率: \t{self.bpm_fore}\n"
                 f"前额测量置信度: {self.confidence_fore * 100:.2f}%\n"
                 f"左脸颊测量心率: \t{self.bpm_left}\n"
@@ -252,12 +256,11 @@ class MainWin(QMainWindow, Ui_MainWindow):
             self.Sig_r.setData([0], [0])
             self.Spec_r.setData([0], [0])
             self.label.setText(
-                f"Fps:\t\t{self.processor.series_class.fps}\n"
-                f"收集数据中:\t\t {100 * self.processor.series_class.get_process():.2f}%...")
+                f"Fps:\t\t{self.series_class.fps}\n"
+                f"收集数据中:\t\t {100 * self.series_class.get_process():.2f}%...")
 
     def closeEvent(self, a0):
         super().closeEvent(a0)
-        self.processor.__del__()
 
 
 if __name__ == "__main__":
