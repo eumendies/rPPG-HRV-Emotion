@@ -53,6 +53,32 @@ class Series2rPPG:
         bvp = A / B
         return bvp
 
+    def POS(self, signal, sampling_rate, window=1.6):
+        window = int(sampling_rate * window)
+        H = np.full(len(signal), 0)
+
+        for t in range(0, (signal.shape[0] - window)):
+            # Spatial averaging
+            C = signal[t: t + window - 1, :].T
+
+            # Temporal normalization
+            mean_color = np.mean(C, axis=1)
+            try:
+                Cn = np.matmul(np.linalg.inv(np.diag(mean_color)), C)
+            except np.linalg.LinAlgError:  # Singular matrix
+                continue
+
+            # Projection
+            S = np.matmul(np.array([[0, 1, -1], [-2, 1, 1]]), Cn)
+
+            # Tuning (2D signal to 1D signal)
+            std = np.array([1, np.std(S[0, :]) / np.std(S[1, :])])
+            P = np.matmul(std, S)
+
+            # Overlap-Adding
+            H[t: t + window - 1] = H[t: t + window - 1] + (P - np.mean(P)) / np.std(P)
+        return H
+
     def CHROM(self, signal):
         X = signal
         Xcomp = 3 * X[:, 0] - 2 * X[:, 1]

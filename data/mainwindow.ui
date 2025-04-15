@@ -84,6 +84,11 @@
            <string>PBV</string>
           </property>
          </item>
+         <item>
+          <property name="text">
+           <string>POS</string>
+          </property>
+         </item>
         </widget>
        </item>
       </layout>

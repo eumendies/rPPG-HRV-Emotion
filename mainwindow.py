@@ -13,7 +13,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        MainWindow.setObjectName("HRV情绪识别系统")
+        MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1308, 850)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -39,6 +39,7 @@ class Ui_MainWindow(object):
         self.comboBox.setMinimumSize(QtCore.QSize(0, 28))
         self.comboBox.setMaximumSize(QtCore.QSize(16777215, 28))
         self.comboBox.setObjectName("comboBox")
+        self.comboBox.addItem("")
         self.comboBox.addItem("")
         self.comboBox.addItem("")
         self.comboBox.addItem("")
@@ -88,5 +89,6 @@ class Ui_MainWindow(object):
         self.comboBox.setItemText(1, _translate("MainWindow", "GREEN-RED"))
         self.comboBox.setItemText(2, _translate("MainWindow", "CHROM"))
         self.comboBox.setItemText(3, _translate("MainWindow", "PBV"))
+        self.comboBox.setItemText(4, _translate("MainWindow", "POS"))
         self.Button_RawTrue.setText(_translate("MainWindow", "原始信号"))
         self.Button_RawFalse.setText(_translate("MainWindow", "滤波信号"))

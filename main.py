@@ -123,12 +123,11 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.bpm_right = 60
 
         self.bpm_avg = 60
-        self.ModeDict = {'GREEN': self.processor.GREEN,
-                         'GREEN-RED': self.processor.GREEN_RED, 'CHROM': self.processor.CHROM,
-                         'PBV': self.processor.PBV}
-        self.Mode = self.ModeDict['GREEN']
+        self.Mode = 'GREEN'
         self.Data_ShowRaw = True  # 展示原始信号或滤波信号
         self.slot_init()
+
+        self.has_show = False
 
     def slot_init(self):
         self.TIMER_Frame.timeout.connect(self.display_image_and_hist)
@@ -138,7 +137,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.Button_RawFalse.clicked.connect(self.Button_Data_RawFalse)
 
     def Button_ChangeMode(self, str):
-        self.Mode = self.ModeDict[str]
+        self.Mode = str
 
     def Button_Data_RawTrue(self):
         self.Data_ShowRaw = True
@@ -187,10 +186,23 @@ class MainWin(QMainWindow, Ui_MainWindow):
         b, a = signal.butter(order, [low, high], btype='band')
         return signal.lfilter(b, a, data)
 
+    def calc_bvp(self, signal):
+        """将信号转换为bvp(blood volume pulse)信号，属于PPG信号"""
+        if self.Mode == 'GREEN':
+            return self.processor.GREEN(signal)
+        elif self.Mode == 'GREEN-RED':
+            return self.processor.GREEN_RED(signal)
+        elif self.Mode == 'CHROM':
+            return self.processor.CHROM(signal)
+        elif self.Mode == 'PBV':
+            return self.processor.PBV(signal)
+        elif self.Mode == 'POS':
+            return self.processor.POS(signal, self.series_class.fps)
+
     def process_signal(self, sig, bpm, sig_plot_widget, spec_plot_widget, pen):
         """计算信号并展示"""
         if sig.size != 1:
-            bvp_raw = self.Mode(sig)    # 将信号转换为bvp(blood volume pulse)信号，属于PPG信号
+            bvp_raw = self.calc_bvp(sig)
             quality = 1 / (max(bvp_raw) - min(bvp_raw))
             bvp_filtered = self.butterworth_filter(
                 self.processor.signal_preprocessing_single(bvp_raw), MIN_HZ, MAX_HZ,
@@ -261,6 +273,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
     def closeEvent(self, a0):
         super().closeEvent(a0)
+        self.series_class.__del__()
 
 
 if __name__ == "__main__":

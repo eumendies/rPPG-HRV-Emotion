@@ -28,9 +28,6 @@ class NumberedFrame:
         self.hist_right = hist_right
         self.hist_fore = hist_fore
 
-    def set_masked_face(self, masked_face):
-        self.masked_face = masked_face
-
 
 class FrameQueue:
     """帧序列，其中的帧按时间戳排序，每次取出时间戳最小的"""
@@ -74,7 +71,7 @@ class CAM2FACE:
         self.fps = self.cam.get(cv.CAP_PROP_FPS)
 
         # Initialize Queue for camera capture
-        self.QUEUE_MAX = 1024
+        self.QUEUE_MAX = 256
         self.QUEUE_WINDOWS = 64
         self.queue_rawframe = Queue()
         self.queue_sig_left = queue.PriorityQueue(maxsize=self.QUEUE_MAX)  # 左脸颊信号队列
@@ -131,7 +128,8 @@ class CAM2FACE:
                 hist_left = self.rgb_hist(roi_left)
                 hist_right = self.rgb_hist(roi_right)
                 hist_fore = self.rgb_hist(roi_fore)
-                numbered_frame.set_masked_face(masked_face)
+
+                numbered_frame.masked_face = masked_face
                 numbered_frame.set_hist(hist_left, hist_right, hist_fore)
                 self.masked_face_queue.put_frame(numbered_frame)
                 with self.mutex:
@@ -196,45 +194,38 @@ class CAM2FACE:
         mask_right = np.zeros(img.shape, np.uint8)
         mask_fore = np.zeros(img.shape, np.uint8)
         try:
-            pts_left = np.array(
-                [landmark[i] for i in cheek_left], np.int32).reshape((-1, 1, 2))
-            pts_right = np.array(
-                [landmark[i] for i in cheek_right], np.int32).reshape((-1, 1, 2))
-            pts_fore = np.array([landmark[i]
-                                 for i in forehead], np.int32).reshape((-1, 1, 2))
+            pts_left = np.array([landmark[i] for i in cheek_left], np.int32).reshape((-1, 1, 2))
+            pts_right = np.array([landmark[i] for i in cheek_right], np.int32).reshape((-1, 1, 2))
+            pts_fore = np.array([landmark[i] for i in forehead], np.int32).reshape((-1, 1, 2))
             mask_left = cv.fillPoly(mask_left, [pts_left], (255, 255, 255))
             mask_right = cv.fillPoly(mask_right, [pts_right], (255, 255, 255))
-            mask_fore = cv.fillPoly(
-                mask_fore, [pts_fore], (255, 255, 255))
+            mask_fore = cv.fillPoly(mask_fore, [pts_fore], (255, 255, 255))
 
             # Erode Kernel: 30
             kernel = cv.getStructuringElement(cv.MORPH_RECT, (15, 30))
             mask_left = cv.erode(mask_left, kernel=kernel, iterations=1)
             mask_right = cv.erode(mask_right, kernel=kernel, iterations=1)
-            mask_fore = cv.erode(
-                mask_fore, kernel=kernel, iterations=1)
-            # mask = cv.bitwise_or(mask_left, mask_right)
-            mask_display_left, mask_display_right = copy.copy(
-                mask_left), copy.copy(mask_right)
-            mask_display_fore = copy.copy(mask_fore)
+            mask_fore = cv.erode(mask_fore, kernel=kernel, iterations=1)
 
+            mask_display_left, mask_display_right, mask_display_fore = (
+                copy.copy(mask_left), copy.copy(mask_right), copy.copy(mask_fore))
+            # 将某个通道置为0，从而将其颜色从白色改为其他颜色
             mask_display_left[:, :, 1] = 0
             mask_display_right[:, :, 0] = 0
             mask_display_fore[:, :, 2] = 0
 
             mask_display = cv.bitwise_or(mask_display_left, mask_display_right)
             mask_display = cv.bitwise_or(mask_display, mask_display_fore)
-            # mask_display = cv.fillPoly(mask_display,  [ pt = 0s_right], (0, 255, 0))
 
             # 将掩膜和原图进行混合
             masked_face = cv.addWeighted(mask_display, 0.25, img, 1, 0)
-
             ROI_left = cv.bitwise_and(mask_left, img)
             ROI_right = cv.bitwise_and(mask_right, img)
             ROI_fore = cv.bitwise_and(mask_fore, img)
             return masked_face, ROI_left, ROI_right, ROI_fore
 
         except Exception as e:
+            print(e)
             return None, None, None, None
 
     # Cal hist of roi
@@ -254,7 +245,7 @@ class CAM2FACE:
         return [r_hist, g_hist, b_hist]
 
     def hist2feature(self, hist):
-        """从RGB直方图中提取特征"""
+        """从RGB直方图中提取特征，即RGB均值"""
         hist_r = hist[0]
         hist_g = hist[1]
         hist_b = hist[2]
