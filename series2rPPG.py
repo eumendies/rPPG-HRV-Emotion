@@ -111,7 +111,3 @@ class Series2rPPG:
     def cal_bpm(self, pre_bpm, spec, fps):
         return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * ONE_MINUTE * 0.05
 
-
-if __name__ == "__main__":
-    processor = Series2rPPG()
-    processor.PROCESS_start()

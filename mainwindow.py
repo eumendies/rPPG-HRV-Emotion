@@ -9,86 +9,81 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox
+from PyQt5.QtGui import QFont
 
 
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1308, 850)
+    def setup_ui(self, MainWindow):
+        MainWindow.setObjectName("rPPG-HRV情绪识别系统")
+        MainWindow.resize(1080, 720)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        self.face = QtWidgets.QLabel(self.centralwidget)
-        self.face.setGeometry(QtCore.QRect(620, 10, 681, 391))
-        self.face.setText("")
-        self.face.setObjectName("face")
-        self.verticalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 410, 531, 431))
-        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
-        self.Layout_BVP = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
-        self.Layout_BVP.setContentsMargins(0, 0, 0, 0)
-        self.Layout_BVP.setObjectName("Layout_BVP")
-        self.verticalLayoutWidget_2 = QtWidgets.QWidget(self.centralwidget)
-        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(10, 10, 601, 391))
-        self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
-        self.Layout_button = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_2)
-        self.Layout_button.setContentsMargins(0, 0, 0, 0)
-        self.Layout_button.setObjectName("Layout_button")
-        self.horizontalLayout = QtWidgets.QHBoxLayout()
-        self.horizontalLayout.setObjectName("horizontalLayout")
-        self.comboBox = QtWidgets.QComboBox(self.verticalLayoutWidget_2)
+
+        self.main_layout = QVBoxLayout()
+        self.top_layout = QHBoxLayout()
+        self.operations_info_layout = QVBoxLayout()
+
+        # 多选框，用于选择信号计算方式
+        self.comboBox = QComboBox()
         self.comboBox.setMinimumSize(QtCore.QSize(0, 28))
         self.comboBox.setMaximumSize(QtCore.QSize(16777215, 28))
         self.comboBox.setObjectName("comboBox")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.horizontalLayout.addWidget(self.comboBox)
-        self.Layout_button.addLayout(self.horizontalLayout)
-        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
-        self.Button_RawTrue = QtWidgets.QPushButton(self.verticalLayoutWidget_2)
-        self.Button_RawTrue.setObjectName("Button_RawTrue")
-        self.horizontalLayout_2.addWidget(self.Button_RawTrue)
-        self.Button_RawFalse = QtWidgets.QPushButton(self.verticalLayoutWidget_2)
-        self.Button_RawFalse.setObjectName("Button_RawFalse")
-        self.horizontalLayout_2.addWidget(self.Button_RawFalse)
-        self.Layout_button.addLayout(self.horizontalLayout_2)
-        self.label = QtWidgets.QLabel(self.verticalLayoutWidget_2)
-        self.label.setMinimumSize(QtCore.QSize(0, 300))
-        font = QtGui.QFont()
-        font.setFamily("Consolas")
-        font.setPointSize(18)
-        self.label.setFont(font)
-        self.label.setText("")
-        self.label.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
-        self.label.setObjectName("label")
-        self.Layout_button.addWidget(self.label)
-        self.verticalLayoutWidget_3 = QtWidgets.QWidget(self.centralwidget)
-        self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(890, 410, 411, 431))
-        self.verticalLayoutWidget_3.setObjectName("verticalLayoutWidget_3")
-        self.Layout_Signal = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_3)
-        self.Layout_Signal.setContentsMargins(0, 0, 0, 0)
-        self.Layout_Signal.setObjectName("Layout_Signal")
-        self.verticalLayoutWidget_4 = QtWidgets.QWidget(self.centralwidget)
-        self.verticalLayoutWidget_4.setGeometry(QtCore.QRect(550, 410, 331, 431))
-        self.verticalLayoutWidget_4.setObjectName("verticalLayoutWidget_4")
-        self.Layout_Spec = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_4)
-        self.Layout_Spec.setContentsMargins(0, 0, 0, 0)
-        self.Layout_Spec.setObjectName("Layout_Spec")
-        MainWindow.setCentralWidget(self.centralwidget)
+        self.comboBox.addItem("GREEN")
+        self.comboBox.addItem("GREEN-RED")
+        self.comboBox.addItem("CHROM")
+        self.comboBox.addItem("PBV")
+        self.comboBox.addItem("POS")
+        self.comboBox.setMinimumWidth(350)
 
-        self.retranslateUi(MainWindow)
+        # 显示原始信号、滤波信号的按钮
+        self.Button_Raw = QPushButton()
+        self.Button_Raw.setText("原始信号")
+        self.Button_Filtered = QPushButton()
+        self.Button_Filtered.setText("滤波信号")
+
+        # 显示FPS、BPM等信息的标签
+        self.info_label = QLabel()
+        self.info_label.setMinimumSize(QtCore.QSize(0, 300))
+        self.info_label.setFont(QFont("Consolas", 18))
+        self.info_label.setText("")
+        self.info_label.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.info_label.setObjectName("info")
+
+        self.operations_info_layout.addWidget(self.comboBox)
+        self.operations_info_layout.addWidget(self.Button_Raw)
+        self.operations_info_layout.addWidget(self.Button_Filtered)
+        self.operations_info_layout.addWidget(self.info_label)
+
+        # 摄像头画面
+        self.face = QtWidgets.QLabel(self.centralwidget)
+        self.face.setFixedSize(480, 280)
+        self.face.setScaledContents(True)
+
+        self.top_layout.addLayout(self.operations_info_layout)
+        self.top_layout.addStretch()
+        self.top_layout.addWidget(self.face)
+
+        self.bottom_layout = QHBoxLayout()
+
+        self.Layout_BVP = QVBoxLayout()
+        self.Layout_BVP.setContentsMargins(0, 0, 0, 0)
+
+        self.Layout_Signal = QVBoxLayout()
+        self.Layout_Signal.setContentsMargins(0, 0, 0, 0)
+
+        self.Layout_Spec = QVBoxLayout()
+        self.Layout_Spec.setContentsMargins(0, 0, 0, 0)
+
+        self.bottom_layout.addLayout(self.Layout_BVP)
+        self.bottom_layout.addLayout(self.Layout_Spec)
+        self.bottom_layout.addLayout(self.Layout_Signal)
+
+        self.main_layout.addLayout(self.top_layout)
+        self.main_layout.addLayout(self.bottom_layout)
+
+        MainWindow.setCentralWidget(self.centralwidget)
+        self.centralwidget.setLayout(self.main_layout)
+
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.comboBox.setItemText(0, _translate("MainWindow", "GREEN"))
-        self.comboBox.setItemText(1, _translate("MainWindow", "GREEN-RED"))
-        self.comboBox.setItemText(2, _translate("MainWindow", "CHROM"))
-        self.comboBox.setItemText(3, _translate("MainWindow", "PBV"))
-        self.comboBox.setItemText(4, _translate("MainWindow", "POS"))
-        self.Button_RawTrue.setText(_translate("MainWindow", "原始信号"))
-        self.Button_RawFalse.setText(_translate("MainWindow", "滤波信号"))

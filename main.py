@@ -7,7 +7,6 @@ Description: Main structure for the application
 """
 
 import sys
-import time
 
 from mainwindow import Ui_MainWindow
 
@@ -34,76 +33,8 @@ MAX_HZ = 2.5  # 150 BPM - maximum allowed heart rate
 class MainWin(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super(MainWin, self).__init__(parent)
-        self.setupUi(self)
+        self.setup_ui(self)
 
-        self.Hist_fore = pg.PlotWidget(self)
-        self.Hist_left = pg.PlotWidget(self)
-        self.Hist_right = pg.PlotWidget(self)
-
-        self.Hist_fore.setYRange(0, 0.2)
-        self.Hist_left.setYRange(0, 0.2)
-        self.Hist_right.setYRange(0, 0.2)
-
-        self.label_fore = QLabel(self.verticalLayoutWidget)
-        self.label_left = QLabel(self.verticalLayoutWidget)
-        self.label_right = QLabel(self.verticalLayoutWidget)
-        self.Hist_fore_r = self.Hist_fore.plot()
-        self.Hist_fore_g = self.Hist_fore.plot()
-        self.Hist_fore_b = self.Hist_fore.plot()
-        self.Hist_left_r = self.Hist_left.plot()
-        self.Hist_left_g = self.Hist_left.plot()
-        self.Hist_left_b = self.Hist_left.plot()
-        self.Hist_right_r = self.Hist_right.plot()
-        self.Hist_right_g = self.Hist_right.plot()
-        self.Hist_right_b = self.Hist_right.plot()
-        self.Layout_Signal.addWidget(self.Hist_fore)
-        self.Layout_Signal.addWidget(self.Hist_left)
-        self.Layout_Signal.addWidget(self.Hist_right)
-
-        self.Signal_fore = pg.PlotWidget(self)
-        self.Signal_left = pg.PlotWidget(self)
-        self.Signal_right = pg.PlotWidget(self)
-
-        self.Sig_f = self.Signal_fore.plot()
-        self.Sig_l = self.Signal_left.plot()
-        self.Sig_r = self.Signal_right.plot()
-
-        self.Spectrum_fore = pg.PlotWidget(self)
-        self.Spectrum_left = pg.PlotWidget(self)
-        self.Spectrum_right = pg.PlotWidget(self)
-
-        self.Spec_f = self.Spectrum_fore.plot()
-        self.Spec_l = self.Spectrum_left.plot()
-        self.Spec_r = self.Spectrum_right.plot()
-
-        font = QFont()
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-
-        self.label_fore.setFont(font)
-        self.label_fore.setText("额头信号")
-        self.Layout_BVP.addWidget(self.label_fore)
-
-        self.Layout_BVP.addWidget(self.Signal_fore)
-
-        self.label_left.setFont(font)
-        self.label_left.setText("左脸颊信号")
-        self.Layout_BVP.addWidget(self.label_left)
-
-        self.Layout_BVP.addWidget(self.Signal_left)
-
-        self.label_right.setFont(font)
-        self.label_right.setText("右脸颊信号")
-        self.Layout_BVP.addWidget(self.label_right)
-
-        self.Layout_BVP.addWidget(self.Signal_right)
-
-        self.Layout_Spec.addWidget(self.Spectrum_fore)
-        self.Layout_Spec.addWidget(self.Spectrum_left)
-        self.Layout_Spec.addWidget(self.Spectrum_right)
-
-        self.face.setScaledContents(True)
         self.processor = Series2rPPG()
         self.series_class = CAM2FACE()
         self.series_class.PROCESS_start()
@@ -128,13 +59,100 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.slot_init()
 
         self.has_show = False
+        
+    def setup_ui(self, MainWindow):
+        super().setup_ui(self)
+        font = QFont()
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+
+        # bvp信号图
+        self.Signal_fore = pg.PlotWidget(self)
+        self.Signal_left = pg.PlotWidget(self)
+        self.Signal_right = pg.PlotWidget(self)
+
+        self.Sig_f = self.Signal_fore.plot()
+        self.Sig_l = self.Signal_left.plot()
+        self.Sig_r = self.Signal_right.plot()
+
+        self.label_sig_fore = QLabel("额头信号")
+        self.label_sig_left = QLabel("左脸颊信号")
+        self.label_sig_right = QLabel("右脸颊信号")
+        self.label_sig_fore.setFont(font)
+        self.label_sig_left.setFont(font)
+        self.label_sig_right.setFont(font)
+
+        self.Layout_BVP.addWidget(self.label_sig_fore)
+        self.Layout_BVP.addWidget(self.Signal_fore)
+        self.Layout_BVP.addWidget(self.label_sig_left)
+        self.Layout_BVP.addWidget(self.Signal_left)
+        self.Layout_BVP.addWidget(self.label_sig_right)
+        self.Layout_BVP.addWidget(self.Signal_right)
+
+        # 信号频域图
+        self.Spectrum_fore = pg.PlotWidget(self)
+        self.Spectrum_left = pg.PlotWidget(self)
+        self.Spectrum_right = pg.PlotWidget(self)
+
+        self.Spec_f = self.Spectrum_fore.plot()
+        self.Spec_l = self.Spectrum_left.plot()
+        self.Spec_r = self.Spectrum_right.plot()
+
+        self.label_spec_fore = QLabel("前额信号频域图")
+        self.label_spec_left = QLabel("左脸颊信号频域图")
+        self.label_spec_right = QLabel("右脸颊信号频域图")
+        self.label_spec_fore.setFont(font)
+        self.label_spec_left.setFont(font)
+        self.label_spec_right.setFont(font)
+
+        self.Layout_Spec.addWidget(self.label_spec_fore)
+        self.Layout_Spec.addWidget(self.Spectrum_fore)
+        self.Layout_Spec.addWidget(self.label_spec_left)
+        self.Layout_Spec.addWidget(self.Spectrum_left)
+        self.Layout_Spec.addWidget(self.label_spec_right)
+        self.Layout_Spec.addWidget(self.Spectrum_right)
+
+        # RGB直方图
+        self.Hist_fore = pg.PlotWidget(self)
+        self.Hist_left = pg.PlotWidget(self)
+        self.Hist_right = pg.PlotWidget(self)
+
+        self.Hist_fore.setYRange(0, 0.2)
+        self.Hist_left.setYRange(0, 0.2)
+        self.Hist_right.setYRange(0, 0.2)
+
+        self.Hist_fore_r = self.Hist_fore.plot()
+        self.Hist_fore_g = self.Hist_fore.plot()
+        self.Hist_fore_b = self.Hist_fore.plot()
+        self.Hist_left_r = self.Hist_left.plot()
+        self.Hist_left_g = self.Hist_left.plot()
+        self.Hist_left_b = self.Hist_left.plot()
+        self.Hist_right_r = self.Hist_right.plot()
+        self.Hist_right_g = self.Hist_right.plot()
+        self.Hist_right_b = self.Hist_right.plot()
+
+        self.label_hist_fore = QLabel("前额RGB直方图")
+        self.label_hist_left = QLabel("左脸颊RGB直方图")
+        self.label_hist_right = QLabel("右脸颊RGB直方图")
+        self.label_hist_fore.setFont(font)
+        self.label_hist_left.setFont(font)
+        self.label_hist_right.setFont(font)
+
+        self.Layout_Signal.addWidget(self.label_hist_fore)
+        self.Layout_Signal.addWidget(self.Hist_fore)
+        self.Layout_Signal.addWidget(self.label_hist_left)
+        self.Layout_Signal.addWidget(self.Hist_left)
+        self.Layout_Signal.addWidget(self.label_hist_right)
+        self.Layout_Signal.addWidget(self.Hist_right)
+
 
     def slot_init(self):
         self.TIMER_Frame.timeout.connect(self.display_image_and_hist)
         self.TIMER_SIGNAL.timeout.connect(self.display_signal)
         self.comboBox.activated[str].connect(self.Button_ChangeMode)
-        self.Button_RawTrue.clicked.connect(self.Button_Data_RawTrue)
-        self.Button_RawFalse.clicked.connect(self.Button_Data_RawFalse)
+        self.Button_Raw.clicked.connect(self.Button_Data_RawTrue)
+        self.Button_Filtered.clicked.connect(self.Button_Data_RawFalse)
 
     def Button_ChangeMode(self, str):
         self.Mode = str
@@ -250,16 +268,16 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 self.bpm_avg = 60
 
             Label_Text = (
-                f"Fps: \t\t{self.series_class.fps}\n"
-                f"前额测量心率: \t{self.bpm_fore}\n"
+                f"Fps: \t\t{self.series_class.fps:.2f}\n"
+                f"前额测量心率: \t{self.bpm_fore:.2f}\n"
                 f"前额测量置信度: {self.confidence_fore * 100:.2f}%\n"
-                f"左脸颊测量心率: \t{self.bpm_left}\n"
+                f"左脸颊测量心率: \t{self.bpm_left:.2f}\n"
                 f"左脸颊测量置信度: {self.confidence_left * 100:.2f}%\n"
-                f"右脸颊测量心率:\t{self.bpm_right}\n"
+                f"右脸颊测量心率:\t{self.bpm_right:.2f}\n"
                 f"右脸颊测量置信度: {self.confidence_right * 100:.2f}%\n\n"
                 f"最终心率: \t{self.bpm_avg:.2f}"
             )
-            self.label.setText(Label_Text)
+            self.info_label.setText(Label_Text)
         else:
             self.Sig_f.setData([0], [0])
             self.Spec_f.setData([0], [0])
@@ -267,8 +285,8 @@ class MainWin(QMainWindow, Ui_MainWindow):
             self.Spec_l.setData([0], [0])
             self.Sig_r.setData([0], [0])
             self.Spec_r.setData([0], [0])
-            self.label.setText(
-                f"Fps:\t\t{self.series_class.fps}\n"
+            self.info_label.setText(
+                f"Fps:\t\t{self.series_class.fps:.2f}\n"
                 f"收集数据中:\t\t {100 * self.series_class.get_process():.2f}%...")
 
     def closeEvent(self, a0):
