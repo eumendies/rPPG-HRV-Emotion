@@ -25,6 +25,7 @@ import cv2 as cv
 from series2rPPG import Series2rPPG
 from face2series import CAM2FACE
 from constants import RED_PEN, GREEN_PEN, BLUE_PEN, ONE_MINUTE
+from hrv import ppg_hrv
 
 MIN_HZ = 0.83  # 50 BPM - minimum allowed heart rate
 MAX_HZ = 2.5  # 150 BPM - maximum allowed heart rate
@@ -240,6 +241,21 @@ class MainWin(QMainWindow, Ui_MainWindow):
             spec_plot_widget.setData([0], [0])
             return None, None, None, None, bpm
 
+    def calc_hrv(self, bvp, row):
+        """计算HRV各项指标并显示在表格中"""
+        if bvp.size != 1:
+            hrv = ppg_hrv(bvp, self.series_class.fps)
+            for col in range(self.time_hrv_table.columnCount()):
+                header = self.time_hrv_table.horizontalHeaderItem(col).text()
+                item = QTableWidgetItem(str(round(hrv[header], 2)))
+                item.setTextAlignment(Qt.AlignCenter)
+                self.time_hrv_table.setItem(row, col, item)
+            for col in range(self.freq_hrv_table.columnCount()):
+                header = self.freq_hrv_table.horizontalHeaderItem(col).text()
+                item = QTableWidgetItem(str(round(hrv[header], 2)))
+                item.setTextAlignment(Qt.AlignCenter)
+                self.freq_hrv_table.setItem(row, col, item)
+
     def display_signal(self):
         sig_fore = np.array(self.series_class.sig_fore)
         sig_left = np.array(self.series_class.sig_left)
@@ -253,6 +269,10 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
             self.bvp_right_raw, self.quality_right, self.bvp_right, self.spc_right, self.bpm_right = (
                 self.process_signal(sig_right, self.bpm_right, self.Sig_r, self.Spec_r, (255, 255, 0)))
+
+            self.calc_hrv(self.bvp_fore, 0)
+            self.calc_hrv(self.bvp_left, 1)
+            self.calc_hrv(self.bvp_right, 2)
 
             self.quality_all = self.quality_fore + self.quality_left + self.quality_right
             if self.quality_all > 0:

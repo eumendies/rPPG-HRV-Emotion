@@ -68,14 +68,14 @@ class Ui_MainWindow(object):
         self.graphs_layout.addLayout(self.Layout_Signal)
 
         # 时域HRV
-        self.time_hrv_table = QTableWidget(1, 5)
-        self.time_hrv_table.setHorizontalHeaderLabels(["HRV_meanNN", "HRV_SDNN", "HRV_RMSSD", "HRV_SDSD", "HRV_pNN50"])
-        self.time_hrv_table.setVerticalHeaderLabels(["数值"])
+        self.time_hrv_table = QTableWidget(3, 5)
+        self.time_hrv_table.setHorizontalHeaderLabels(["HRV_MeanNN", "HRV_SDNN", "HRV_RMSSD", "HRV_SDSD", "HRV_pNN50"])
+        self.time_hrv_table.setVerticalHeaderLabels(["前额", "左脸颊", "右脸颊"])
 
         # 频域HRV
-        self.freq_hrv_table = QTableWidget(1, 6)
+        self.freq_hrv_table = QTableWidget(3, 6)
         self.freq_hrv_table.setHorizontalHeaderLabels(["HRV_ULF", "HRV_VLF", "HRV_LF", "HRV_HF", "HRV_VHF", "HRV_TP"])
-        self.freq_hrv_table.setVerticalHeaderLabels(["数值"])
+        self.freq_hrv_table.setVerticalHeaderLabels(["前额", "左脸颊", "右脸颊"])
 
         self.main_layout.addLayout(self.top_layout)
         self.main_layout.addLayout(self.graphs_layout)
@@ -87,4 +87,3 @@ class Ui_MainWindow(object):
         self.centralwidget.setLayout(self.main_layout)
 
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
