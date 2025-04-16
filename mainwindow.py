@@ -13,6 +13,7 @@ class Ui_MainWindow(object):
         self.main_layout = QVBoxLayout()
         self.top_layout = QHBoxLayout()
         self.operations_info_layout = QVBoxLayout()
+        self.buttons_layout = QHBoxLayout()
 
         # 多选框，用于选择信号计算方式
         self.comboBox = QComboBox()
@@ -24,7 +25,6 @@ class Ui_MainWindow(object):
         self.comboBox.addItem("CHROM")
         self.comboBox.addItem("PBV")
         self.comboBox.addItem("POS")
-        self.comboBox.setMinimumWidth(350)
 
         # 显示原始信号、滤波信号的按钮
         self.Button_Raw = QPushButton()
@@ -32,17 +32,40 @@ class Ui_MainWindow(object):
         self.Button_Filtered = QPushButton()
         self.Button_Filtered.setText("滤波信号")
 
+        self.buttons_layout.addWidget(self.comboBox)
+        self.buttons_layout.addWidget(self.Button_Raw)
+        self.buttons_layout.addWidget(self.Button_Filtered)
+
         # 显示FPS、BPM等信息的标签
         self.info_label = QLabel()
-        self.info_label.setMinimumSize(QtCore.QSize(0, 220))
+        self.info_label.setMinimumSize(QtCore.QSize(0, 50))
         self.info_label.setFont(QFont("Consolas", 16))
         self.info_label.setText("")
         self.info_label.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.info_label.setObjectName("info")
 
-        self.operations_info_layout.addWidget(self.comboBox)
-        self.operations_info_layout.addWidget(self.Button_Raw)
-        self.operations_info_layout.addWidget(self.Button_Filtered)
+        self.info_table = QTableWidget(2, 4)
+        self.info_table.setHorizontalHeaderLabels(["前额测量心率", "左脸颊测量心率", "右脸颊测量心率", "最终心率"])
+        self.info_table.setVerticalHeaderLabels(["数值", "置信度"])
+        self.info_table.setMinimumHeight(80)
+
+        # 时域HRV
+        self.time_hrv_table = QTableWidget(3, 5)
+        self.time_hrv_table.setHorizontalHeaderLabels(["HRV_MeanNN", "HRV_SDNN", "HRV_RMSSD", "HRV_SDSD", "HRV_pNN50"])
+        self.time_hrv_table.setVerticalHeaderLabels(["前额", "左脸颊", "右脸颊"])
+        self.time_hrv_table.setMinimumHeight(120)
+
+        # 频域HRV
+        self.freq_hrv_table = QTableWidget(3, 6)
+        self.freq_hrv_table.setHorizontalHeaderLabels(["HRV_ULF", "HRV_VLF", "HRV_LF", "HRV_HF", "HRV_VHF", "HRV_TP"])
+        self.freq_hrv_table.setVerticalHeaderLabels(["前额", "左脸颊", "右脸颊"])
+        self.freq_hrv_table.setMinimumWidth(650)
+        self.freq_hrv_table.setMinimumHeight(120)
+
+        self.operations_info_layout.addLayout(self.buttons_layout)
+        self.operations_info_layout.addWidget(self.info_table)
+        self.operations_info_layout.addWidget(self.time_hrv_table)
+        self.operations_info_layout.addWidget(self.freq_hrv_table)
         self.operations_info_layout.addWidget(self.info_label)
 
         # 摄像头画面
@@ -50,9 +73,11 @@ class Ui_MainWindow(object):
         self.face.setFixedSize(320, 180)
         self.face.setScaledContents(True)
 
+        self.top_layout.addSpacing(10)
         self.top_layout.addLayout(self.operations_info_layout)
-        self.top_layout.addStretch()
+        self.top_layout.addSpacing(10)
         self.top_layout.addWidget(self.face)
+        self.top_layout.addSpacing(10)
 
         self.graphs_layout = QHBoxLayout()
         # 用于展示各种信号
@@ -67,20 +92,10 @@ class Ui_MainWindow(object):
         self.graphs_layout.addLayout(self.Layout_Spec)
         self.graphs_layout.addLayout(self.Layout_Signal)
 
-        # 时域HRV
-        self.time_hrv_table = QTableWidget(3, 5)
-        self.time_hrv_table.setHorizontalHeaderLabels(["HRV_MeanNN", "HRV_SDNN", "HRV_RMSSD", "HRV_SDSD", "HRV_pNN50"])
-        self.time_hrv_table.setVerticalHeaderLabels(["前额", "左脸颊", "右脸颊"])
 
-        # 频域HRV
-        self.freq_hrv_table = QTableWidget(3, 6)
-        self.freq_hrv_table.setHorizontalHeaderLabels(["HRV_ULF", "HRV_VLF", "HRV_LF", "HRV_HF", "HRV_VHF", "HRV_TP"])
-        self.freq_hrv_table.setVerticalHeaderLabels(["前额", "左脸颊", "右脸颊"])
 
         self.main_layout.addLayout(self.top_layout)
         self.main_layout.addLayout(self.graphs_layout)
-        self.main_layout.addWidget(self.time_hrv_table)
-        self.main_layout.addWidget(self.freq_hrv_table)
         self.main_layout.setSpacing(5)
 
         MainWindow.setCentralWidget(self.centralwidget)

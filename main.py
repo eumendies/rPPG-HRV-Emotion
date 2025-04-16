@@ -241,18 +241,28 @@ class MainWin(QMainWindow, Ui_MainWindow):
             spec_plot_widget.setData([0], [0])
             return None, None, None, None, bpm
 
+    def display_bpm(self, bpm_dict):
+        """将各ROI的测量心率和置信度展示在表格中"""
+        for i, header in enumerate(["前额测量心率", "左脸颊测量心率", "右脸颊测量心率", "最终心率"]):
+            value_item = QTableWidgetItem(str(round(bpm_dict[header][0], 2)))
+            confidence_item = QTableWidgetItem(str(round(bpm_dict[header][1], 2)))
+            value_item.setTextAlignment(Qt.AlignCenter)
+            confidence_item.setTextAlignment(Qt.AlignCenter)
+            self.info_table.setItem(0, i, value_item)
+            self.info_table.setItem(1, i, confidence_item)
+
     def calc_hrv(self, bvp, row):
         """计算HRV各项指标并显示在表格中"""
         if bvp.size != 1:
             hrv = ppg_hrv(bvp, self.series_class.fps)
             for col in range(self.time_hrv_table.columnCount()):
                 header = self.time_hrv_table.horizontalHeaderItem(col).text()
-                item = QTableWidgetItem(str(round(hrv[header], 2)))
+                item = QTableWidgetItem(str(round(hrv[header].item(), 2)))
                 item.setTextAlignment(Qt.AlignCenter)
                 self.time_hrv_table.setItem(row, col, item)
             for col in range(self.freq_hrv_table.columnCount()):
                 header = self.freq_hrv_table.horizontalHeaderItem(col).text()
-                item = QTableWidgetItem(str(round(hrv[header], 2)))
+                item = QTableWidgetItem(str(round(hrv[header].item(), 2)))
                 item.setTextAlignment(Qt.AlignCenter)
                 self.freq_hrv_table.setItem(row, col, item)
 
@@ -270,9 +280,9 @@ class MainWin(QMainWindow, Ui_MainWindow):
             self.bvp_right_raw, self.quality_right, self.bvp_right, self.spc_right, self.bpm_right = (
                 self.process_signal(sig_right, self.bpm_right, self.Sig_r, self.Spec_r, (255, 255, 0)))
 
-            self.calc_hrv(self.bvp_fore, 0)
-            self.calc_hrv(self.bvp_left, 1)
-            self.calc_hrv(self.bvp_right, 2)
+            self.calc_hrv(self.bvp_fore_raw, 0)
+            self.calc_hrv(self.bvp_left_raw, 1)
+            self.calc_hrv(self.bvp_right_raw, 2)
 
             self.quality_all = self.quality_fore + self.quality_left + self.quality_right
             if self.quality_all > 0:
@@ -287,15 +297,16 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 self.confidence_right = 0
                 self.bpm_avg = 60
 
+            bpm_dict = {
+                "前额测量心率": [self.bpm_fore, self.confidence_fore],
+                "左脸颊测量心率": [self.bpm_left, self.confidence_left],
+                "右脸颊测量心率": [self.bpm_right, self.confidence_right],
+                "最终心率": [self.bpm_avg, 1]
+            }
+            self.display_bpm(bpm_dict)
+
             Label_Text = (
-                f"Fps: \t\t{self.series_class.fps:.2f}\n"
-                f"前额测量心率: \t{self.bpm_fore:.2f}\n"
-                f"前额测量置信度: {self.confidence_fore * 100:.2f}%\n"
-                f"左脸颊测量心率: \t{self.bpm_left:.2f}\n"
-                f"左脸颊测量置信度: {self.confidence_left * 100:.2f}%\n"
-                f"右脸颊测量心率:\t{self.bpm_right:.2f}\n"
-                f"右脸颊测量置信度: {self.confidence_right * 100:.2f}%\n\n"
-                f"最终心率: \t{self.bpm_avg:.2f}"
+                f"Fps: \t\t{self.series_class.fps:.2f}"
             )
             self.info_label.setText(Label_Text)
         else:
