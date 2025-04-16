@@ -55,7 +55,7 @@ class FrameQueue:
 class CAM2FACE:
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
 
-    def __init__(self, num_process_threads=4) -> None:
+    def __init__(self, num_process_threads=3) -> None:
         # get face detector and 68 face landmark
         self.num_process_threads = num_process_threads
         self.detectors = [dlib.get_frontal_face_detector() for _ in range(num_process_threads)]

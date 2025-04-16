@@ -8,24 +8,18 @@ Description: Main structure for the application
 
 import sys
 
-from mainwindow import Ui_MainWindow
-
-from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication
-from PyQt5 import QtCore
+import cv2 as cv
+import numpy as np
+from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-
-import pyqtgraph as pg
-
-from obspy.signal.detrend import spline
 from scipy import signal
-import numpy as np
-import cv2 as cv
-from series2rPPG import Series2rPPG
-from face2series import CAM2FACE
+
 from constants import RED_PEN, GREEN_PEN, BLUE_PEN, ONE_MINUTE
+from face2series import CAM2FACE
 from hrv import ppg_hrv
+from mainwindow import Ui_MainWindow
+from series2rPPG import Series2rPPG
 
 MIN_HZ = 0.83  # 50 BPM - minimum allowed heart rate
 MAX_HZ = 2.5  # 150 BPM - maximum allowed heart rate
@@ -58,94 +52,6 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.Mode = 'GREEN'
         self.Data_ShowRaw = True  # 展示原始信号或滤波信号
         self.slot_init()
-
-        self.has_show = False
-        
-    def setup_ui(self, MainWindow):
-        super().setup_ui(self)
-        font = QFont()
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-
-        # bvp信号图
-        self.Signal_fore = pg.PlotWidget(self)
-        self.Signal_left = pg.PlotWidget(self)
-        self.Signal_right = pg.PlotWidget(self)
-
-        self.Sig_f = self.Signal_fore.plot()
-        self.Sig_l = self.Signal_left.plot()
-        self.Sig_r = self.Signal_right.plot()
-
-        self.label_sig_fore = QLabel("额头信号")
-        self.label_sig_left = QLabel("左脸颊信号")
-        self.label_sig_right = QLabel("右脸颊信号")
-        self.label_sig_fore.setFont(font)
-        self.label_sig_left.setFont(font)
-        self.label_sig_right.setFont(font)
-
-        self.Layout_BVP.addWidget(self.label_sig_fore)
-        self.Layout_BVP.addWidget(self.Signal_fore)
-        self.Layout_BVP.addWidget(self.label_sig_left)
-        self.Layout_BVP.addWidget(self.Signal_left)
-        self.Layout_BVP.addWidget(self.label_sig_right)
-        self.Layout_BVP.addWidget(self.Signal_right)
-
-        # 信号频域图
-        self.Spectrum_fore = pg.PlotWidget(self)
-        self.Spectrum_left = pg.PlotWidget(self)
-        self.Spectrum_right = pg.PlotWidget(self)
-
-        self.Spec_f = self.Spectrum_fore.plot()
-        self.Spec_l = self.Spectrum_left.plot()
-        self.Spec_r = self.Spectrum_right.plot()
-
-        self.label_spec_fore = QLabel("前额信号频域图")
-        self.label_spec_left = QLabel("左脸颊信号频域图")
-        self.label_spec_right = QLabel("右脸颊信号频域图")
-        self.label_spec_fore.setFont(font)
-        self.label_spec_left.setFont(font)
-        self.label_spec_right.setFont(font)
-
-        self.Layout_Spec.addWidget(self.label_spec_fore)
-        self.Layout_Spec.addWidget(self.Spectrum_fore)
-        self.Layout_Spec.addWidget(self.label_spec_left)
-        self.Layout_Spec.addWidget(self.Spectrum_left)
-        self.Layout_Spec.addWidget(self.label_spec_right)
-        self.Layout_Spec.addWidget(self.Spectrum_right)
-
-        # RGB直方图
-        self.Hist_fore = pg.PlotWidget(self)
-        self.Hist_left = pg.PlotWidget(self)
-        self.Hist_right = pg.PlotWidget(self)
-
-        self.Hist_fore.setYRange(0, 0.2)
-        self.Hist_left.setYRange(0, 0.2)
-        self.Hist_right.setYRange(0, 0.2)
-
-        self.Hist_fore_r = self.Hist_fore.plot()
-        self.Hist_fore_g = self.Hist_fore.plot()
-        self.Hist_fore_b = self.Hist_fore.plot()
-        self.Hist_left_r = self.Hist_left.plot()
-        self.Hist_left_g = self.Hist_left.plot()
-        self.Hist_left_b = self.Hist_left.plot()
-        self.Hist_right_r = self.Hist_right.plot()
-        self.Hist_right_g = self.Hist_right.plot()
-        self.Hist_right_b = self.Hist_right.plot()
-
-        self.label_hist_fore = QLabel("前额RGB直方图")
-        self.label_hist_left = QLabel("左脸颊RGB直方图")
-        self.label_hist_right = QLabel("右脸颊RGB直方图")
-        self.label_hist_fore.setFont(font)
-        self.label_hist_left.setFont(font)
-        self.label_hist_right.setFont(font)
-
-        self.Layout_Signal.addWidget(self.label_hist_fore)
-        self.Layout_Signal.addWidget(self.Hist_fore)
-        self.Layout_Signal.addWidget(self.label_hist_left)
-        self.Layout_Signal.addWidget(self.Hist_left)
-        self.Layout_Signal.addWidget(self.label_hist_right)
-        self.Layout_Signal.addWidget(self.Hist_right)
 
     def slot_init(self):
         self.TIMER_Frame.timeout.connect(self.display_image_and_hist)
@@ -310,11 +216,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 "最终心率": [self.bpm_avg, 1]
             }
             self.display_bpm(bpm_dict)
-
-            Label_Text = (
-                f"Fps: \t\t{self.series_class.fps:.2f}"
-            )
-            self.info_label.setText(Label_Text)
+            self.info_label.setText(f"Fps: \t\t{self.series_class.fps:.2f}")
         else:
             self.Sig_f.setData([0], [0])
             self.Spec_f.setData([0], [0])

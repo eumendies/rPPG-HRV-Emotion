@@ -1,6 +1,7 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QTableWidget
+import pyqtgraph as pg
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QTableWidget
 
 
 class Ui_MainWindow(object):
@@ -99,11 +100,93 @@ class Ui_MainWindow(object):
         self.Layout_Spec = QVBoxLayout()
         self.Layout_Spec.setContentsMargins(0, 0, 0, 0)
 
+        font = QFont()
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+
+        # bvp信号图
+        self.Signal_fore = pg.PlotWidget(MainWindow)
+        self.Signal_left = pg.PlotWidget(MainWindow)
+        self.Signal_right = pg.PlotWidget(MainWindow)
+
+        self.Sig_f = self.Signal_fore.plot()
+        self.Sig_l = self.Signal_left.plot()
+        self.Sig_r = self.Signal_right.plot()
+
+        self.label_sig_fore = QLabel("额头信号")
+        self.label_sig_left = QLabel("左脸颊信号")
+        self.label_sig_right = QLabel("右脸颊信号")
+        self.label_sig_fore.setFont(font)
+        self.label_sig_left.setFont(font)
+        self.label_sig_right.setFont(font)
+
+        self.Layout_BVP.addWidget(self.label_sig_fore)
+        self.Layout_BVP.addWidget(self.Signal_fore)
+        self.Layout_BVP.addWidget(self.label_sig_left)
+        self.Layout_BVP.addWidget(self.Signal_left)
+        self.Layout_BVP.addWidget(self.label_sig_right)
+        self.Layout_BVP.addWidget(self.Signal_right)
+
+        # 信号频域图
+        self.Spectrum_fore = pg.PlotWidget(self)
+        self.Spectrum_left = pg.PlotWidget(self)
+        self.Spectrum_right = pg.PlotWidget(self)
+
+        self.Spec_f = self.Spectrum_fore.plot()
+        self.Spec_l = self.Spectrum_left.plot()
+        self.Spec_r = self.Spectrum_right.plot()
+
+        self.label_spec_fore = QLabel("前额信号频域图")
+        self.label_spec_left = QLabel("左脸颊信号频域图")
+        self.label_spec_right = QLabel("右脸颊信号频域图")
+        self.label_spec_fore.setFont(font)
+        self.label_spec_left.setFont(font)
+        self.label_spec_right.setFont(font)
+
+        self.Layout_Spec.addWidget(self.label_spec_fore)
+        self.Layout_Spec.addWidget(self.Spectrum_fore)
+        self.Layout_Spec.addWidget(self.label_spec_left)
+        self.Layout_Spec.addWidget(self.Spectrum_left)
+        self.Layout_Spec.addWidget(self.label_spec_right)
+        self.Layout_Spec.addWidget(self.Spectrum_right)
+
+        # RGB直方图
+        self.Hist_fore = pg.PlotWidget(self)
+        self.Hist_left = pg.PlotWidget(self)
+        self.Hist_right = pg.PlotWidget(self)
+
+        self.Hist_fore.setYRange(0, 0.2)
+        self.Hist_left.setYRange(0, 0.2)
+        self.Hist_right.setYRange(0, 0.2)
+
+        self.Hist_fore_r = self.Hist_fore.plot()
+        self.Hist_fore_g = self.Hist_fore.plot()
+        self.Hist_fore_b = self.Hist_fore.plot()
+        self.Hist_left_r = self.Hist_left.plot()
+        self.Hist_left_g = self.Hist_left.plot()
+        self.Hist_left_b = self.Hist_left.plot()
+        self.Hist_right_r = self.Hist_right.plot()
+        self.Hist_right_g = self.Hist_right.plot()
+        self.Hist_right_b = self.Hist_right.plot()
+
+        self.label_hist_fore = QLabel("前额RGB直方图")
+        self.label_hist_left = QLabel("左脸颊RGB直方图")
+        self.label_hist_right = QLabel("右脸颊RGB直方图")
+        self.label_hist_fore.setFont(font)
+        self.label_hist_left.setFont(font)
+        self.label_hist_right.setFont(font)
+
+        self.Layout_Signal.addWidget(self.label_hist_fore)
+        self.Layout_Signal.addWidget(self.Hist_fore)
+        self.Layout_Signal.addWidget(self.label_hist_left)
+        self.Layout_Signal.addWidget(self.Hist_left)
+        self.Layout_Signal.addWidget(self.label_hist_right)
+        self.Layout_Signal.addWidget(self.Hist_right)
+
         self.graphs_layout.addLayout(self.Layout_BVP)
         self.graphs_layout.addLayout(self.Layout_Spec)
         self.graphs_layout.addLayout(self.Layout_Signal)
-
-
 
         self.main_layout.addLayout(self.top_layout)
         self.main_layout.addLayout(self.graphs_layout)
