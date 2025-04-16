@@ -105,6 +105,15 @@ class CAM2FACE:
         for thread in self.roi_cal_threads:
             thread.start()
 
+    def change_data_num(self, data_num):
+        self.QUEUE_MAX = data_num
+        self.queue_sig_left = queue.PriorityQueue(maxsize=self.QUEUE_MAX)
+        self.queue_sig_right = queue.PriorityQueue(maxsize=self.QUEUE_MAX)
+        self.queue_sig_fore = queue.PriorityQueue(maxsize=self.QUEUE_MAX)
+        self.sig_left = None
+        self.sig_right = None
+        self.sig_fore = None
+
     # Process: capture frame from camera in specific fps of the camera
     def capture_process(self):
         while self.ongoing:

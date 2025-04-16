@@ -147,22 +147,28 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.Layout_Signal.addWidget(self.label_hist_right)
         self.Layout_Signal.addWidget(self.Hist_right)
 
-
     def slot_init(self):
         self.TIMER_Frame.timeout.connect(self.display_image_and_hist)
         self.TIMER_SIGNAL.timeout.connect(self.display_signal)
-        self.comboBox.activated[str].connect(self.Button_ChangeMode)
-        self.Button_Raw.clicked.connect(self.Button_Data_RawTrue)
-        self.Button_Filtered.clicked.connect(self.Button_Data_RawFalse)
+        self.comboBox.activated[str].connect(self.combobox_change_mode)
+        self.comboBox_data_num.activated[str].connect(self.combobox_change_data_num)
+        self.Button_Raw.clicked.connect(self.button_data_raw_true)
+        self.Button_Filtered.clicked.connect(self.button_data_raw_false)
 
-    def Button_ChangeMode(self, str):
+    def combobox_change_mode(self, str):
         self.Mode = str
 
-    def Button_Data_RawTrue(self):
+    def button_data_raw_true(self):
         self.Data_ShowRaw = True
 
-    def Button_Data_RawFalse(self):
+    def button_data_raw_false(self):
         self.Data_ShowRaw = False
+        
+    def combobox_change_data_num(self, data_num):
+        if data_num == '采集数据量(默认256)':
+            data_num = 256
+        if data_num != self.series_class.QUEUE_MAX:
+            self.series_class.change_data_num(int(data_num))
 
     def display_image_and_hist(self):
         """展示前置摄像头画面"""

@@ -26,6 +26,16 @@ class Ui_MainWindow(object):
         self.comboBox.addItem("PBV")
         self.comboBox.addItem("POS")
 
+        # 多选框，用于选择采集数据量
+        self.comboBox_data_num = QComboBox()
+        self.comboBox_data_num.setMinimumSize(QtCore.QSize(0, 28))
+        self.comboBox_data_num.setMaximumSize(QtCore.QSize(16777215, 28))
+        self.comboBox_data_num.addItem("采集数据量(默认256)")
+        self.comboBox_data_num.addItem("256")
+        self.comboBox_data_num.addItem("512")
+        self.comboBox_data_num.addItem("1024")
+        self.comboBox_data_num.addItem("2048")
+
         # 显示原始信号、滤波信号的按钮
         self.Button_Raw = QPushButton()
         self.Button_Raw.setText("原始信号")
@@ -33,6 +43,7 @@ class Ui_MainWindow(object):
         self.Button_Filtered.setText("滤波信号")
 
         self.buttons_layout.addWidget(self.comboBox)
+        self.buttons_layout.addWidget(self.comboBox_data_num)
         self.buttons_layout.addWidget(self.Button_Raw)
         self.buttons_layout.addWidget(self.Button_Filtered)
 
