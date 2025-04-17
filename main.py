@@ -7,6 +7,7 @@ Description: Main structure for the application
 """
 
 import sys
+import time
 
 import cv2 as cv
 import numpy as np
@@ -32,17 +33,9 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
         self.processor = Series2rPPG()
         self.series_class = CAM2FACE()
-        self.series_class.PROCESS_start()
 
-        # 用于更新画面的定时器
-        self.TIMER_Frame = QTimer()
-        self.TIMER_Frame.setInterval(30)
-        self.TIMER_Frame.start()
-
-        # 用于更新信号的定时器
-        self.TIMER_SIGNAL = QTimer()
-        self.TIMER_SIGNAL.setInterval(30)
-        self.TIMER_SIGNAL.start()
+        self.hrv_calculation_interval = 5   # 每5秒计算一次HRV
+        self.last_calculation_time = 0
 
         self.bpm_fore = 60
         self.bpm_left = 60
@@ -54,12 +47,14 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.slot_init()
 
     def slot_init(self):
-        self.TIMER_Frame.timeout.connect(self.display_image_and_hist)
-        self.TIMER_SIGNAL.timeout.connect(self.display_signal)
         self.comboBox.activated[str].connect(self.combobox_change_mode)
         self.comboBox_data_num.activated[str].connect(self.combobox_change_data_num)
         self.Button_Raw.clicked.connect(self.button_data_raw_true)
         self.Button_Filtered.clicked.connect(self.button_data_raw_false)
+
+        self.series_class.image_signal.connect(self.display_image_and_hist)
+        self.series_class.features_signal.connect(self.display_signal)
+        self.series_class.start()
 
     def combobox_change_mode(self, str):
         self.Mode = str
@@ -69,29 +64,35 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
     def button_data_raw_false(self):
         self.Data_ShowRaw = False
-        
+
     def combobox_change_data_num(self, data_num):
         if data_num == '采集数据量(默认256)':
             data_num = 256
         if data_num != self.series_class.QUEUE_MAX:
             self.series_class.change_data_num(int(data_num))
+        self.Sig_f.setData([0], [0])
+        self.Spec_f.setData([0], [0])
+        self.Sig_l.setData([0], [0])
+        self.Spec_l.setData([0], [0])
+        self.Sig_r.setData([0], [0])
+        self.Spec_r.setData([0], [0])
 
-    def display_image_and_hist(self):
+    def display_image_and_hist(self, numbered_frame):
         """展示前置摄像头画面"""
-        try:
-            numbered_frame = self.series_class.masked_face_queue.get_frame()
-        except Exception as e:
-            print(e)
-            return
         if numbered_frame is not None:
             masked_face = numbered_frame.masked_face
             img = cv.cvtColor(masked_face, cv.COLOR_BGR2RGB)
             qimg = QImage(img.data, img.shape[1], img.shape[0], QImage.Format_RGB888)
             self.face.setPixmap(QPixmap.fromImage(qimg))
             self.display_hist(numbered_frame.hist_left, numbered_frame.hist_right, numbered_frame.hist_fore)
+        if self.series_class.get_process() < 1:
+            self.info_label.setText(f"Fps: \t\t{self.series_class.fps:.2f}\n"
+                                    f"收集数据中: \t\t{100 * self.series_class.get_process():.2f}%")
+
 
     def display_hist(self, hist_left, hist_right, hist_fore):
         """展示直方图数据"""
+
         def set_hist_data(hist, hist_r, hist_g, hist_b):
             if hist.size != 1:
                 hist_r.setData(hist[0, :], pen=RED_PEN)
@@ -101,6 +102,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 hist_r.clear()
                 hist_g.clear()
                 hist_b.clear()
+
         hist_fore = np.array(hist_fore)
         hist_left = np.array(hist_left)
         hist_right = np.array(hist_right)
@@ -130,29 +132,6 @@ class MainWin(QMainWindow, Ui_MainWindow):
         elif self.Mode == 'POS':
             return self.processor.POS(signal, self.series_class.fps)
 
-    def process_signal(self, sig, bpm, sig_plot_widget, spec_plot_widget, pen):
-        """计算信号并展示"""
-        if sig.size != 1:
-            bvp_raw = self.calc_bvp(sig)
-            quality = 1 / (max(bvp_raw) - min(bvp_raw))
-            bvp_filtered = self.butterworth_filter(
-                self.processor.signal_preprocessing_single(bvp_raw), MIN_HZ, MAX_HZ,
-                self.series_class.fps, order=5)
-            spc = np.abs(np.fft.fft(bvp_filtered))  # 频域
-            bpm = self.processor.cal_bpm(bpm, spc, self.series_class.fps)
-            if self.Data_ShowRaw:
-                sig_plot_widget.setData(bvp_raw, pen=pen)
-            else:
-                sig_plot_widget.setData(bvp_filtered, pen=pen)
-
-            spec_plot_widget.setData(np.linspace(0, self.series_class.fps / 2 * ONE_MINUTE, int((len(spc) + 1) / 2)),
-                                     spc[:int((len(spc) + 1) / 2)], pen=pen)
-            return bvp_raw, quality, bvp_filtered, spc, bpm
-        else:
-            sig_plot_widget.setData([0], [0])
-            spec_plot_widget.setData([0], [0])
-            return None, None, None, None, bpm
-
     def display_bpm(self, bpm_dict):
         """将各ROI的测量心率和置信度展示在表格中"""
         for i, header in enumerate(["前额测量心率", "左脸颊测量心率", "右脸颊测量心率", "最终心率"]):
@@ -178,55 +157,58 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 item.setTextAlignment(Qt.AlignCenter)
                 self.freq_hrv_table.setItem(row, col, item)
 
-    def display_signal(self):
-        sig_fore = np.array(self.series_class.sig_fore)
-        sig_left = np.array(self.series_class.sig_left)
-        sig_right = np.array(self.series_class.sig_right)
-        if self.series_class.data_collected:
-            self.bvp_fore_raw, self.quality_fore, self.bvp_fore, self.spc_fore, self.bpm_fore = (
-                self.process_signal(sig_fore, self.bpm_fore, self.Sig_f, self.Spec_f, (0, 255, 255)))
-
-            self.bvp_left_raw, self.quality_left, self.bvp_left, self.spc_left, self.bpm_left = (
-                self.process_signal(sig_left, self.bpm_left, self.Sig_l, self.Spec_l, (255, 0, 255)))
-
-            self.bvp_right_raw, self.quality_right, self.bvp_right, self.spc_right, self.bpm_right = (
-                self.process_signal(sig_right, self.bpm_right, self.Sig_r, self.Spec_r, (255, 255, 0)))
-
-            self.calc_hrv(self.bvp_fore_raw, 0)
-            self.calc_hrv(self.bvp_left_raw, 1)
-            self.calc_hrv(self.bvp_right_raw, 2)
-
-            self.quality_all = self.quality_fore + self.quality_left + self.quality_right
-            if self.quality_all > 0:
-                self.confidence_fore = self.quality_fore / self.quality_all
-                self.confidence_left = self.quality_left / self.quality_all
-                self.confidence_right = self.quality_right / self.quality_all
-                self.bpm_avg = (self.bpm_fore * self.confidence_fore + self.bpm_left * self.confidence_left
-                                + self.bpm_right * self.confidence_right)
-            else:
-                self.confidence_fore = 0
-                self.confidence_left = 0
-                self.confidence_right = 0
-                self.bpm_avg = 60
-
-            bpm_dict = {
-                "前额测量心率": [self.bpm_fore, self.confidence_fore],
-                "左脸颊测量心率": [self.bpm_left, self.confidence_left],
-                "右脸颊测量心率": [self.bpm_right, self.confidence_right],
-                "最终心率": [self.bpm_avg, 1]
-            }
-            self.display_bpm(bpm_dict)
-            self.info_label.setText(f"Fps: \t\t{self.series_class.fps:.2f}")
+    def plot_bvp_and_spec(self, bvp_raw, bvp_filtered, spec, sig_plot_widget, spec_plot_widget, pen):
+        if self.Data_ShowRaw:
+            sig_plot_widget.setData(bvp_raw, pen=pen)
         else:
-            self.Sig_f.setData([0], [0])
-            self.Spec_f.setData([0], [0])
-            self.Sig_l.setData([0], [0])
-            self.Spec_l.setData([0], [0])
-            self.Sig_r.setData([0], [0])
-            self.Spec_r.setData([0], [0])
-            self.info_label.setText(
-                f"Fps:\t\t{self.series_class.fps:.2f}\n"
-                f"收集数据中:\t\t {100 * self.series_class.get_process():.2f}%...")
+            sig_plot_widget.setData(bvp_filtered, pen=pen)
+
+        spec_plot_widget.setData(np.linspace(0, self.series_class.fps / 2 * ONE_MINUTE, int((len(spec) + 1) / 2)),
+                                 spec[:int((len(spec) + 1) / 2)], pen=pen)
+
+    def display_signal(self, signal):
+        """
+        args:
+            signal: shape [3, len(queue), 3]
+        """
+        bvp = self.calc_bvp(signal)
+        bvp_raw = bvp[:, -self.series_class.FEATURE_WINDOW:]  # [3, FEATURE_WINDOW]
+        quality = 1 / (np.max(bvp_raw, axis=-1) - np.min(bvp_raw, axis=-1))
+        bvp_filtered = np.array([self.butterworth_filter(self.processor.signal_preprocessing_single(bvp_raw[i, :]),
+                                                         MIN_HZ, MAX_HZ, self.series_class.fps, order=5)
+                                 for i in range(3)])
+        spec = np.abs(np.fft.fft(bvp_filtered))
+
+        self.bpm_fore = self.processor.cal_bpm(self.bpm_fore, spec[0, :], self.series_class.fps)
+        self.bpm_left = self.processor.cal_bpm(self.bpm_left, spec[1, :], self.series_class.fps)
+        self.bpm_right = self.processor.cal_bpm(self.bpm_right, spec[2, :], self.series_class.fps)
+
+        self.plot_bvp_and_spec(bvp_raw[0, :], bvp_filtered[0, :], spec[0, :], self.Sig_f, self.Spec_f, (0, 255, 255))
+        self.plot_bvp_and_spec(bvp_raw[1, :], bvp_filtered[1, :], spec[1, :], self.Sig_l, self.Spec_l, (255, 0, 255))
+        self.plot_bvp_and_spec(bvp_raw[2, :], bvp_filtered[2, :], spec[2, :], self.Sig_r, self.Spec_r, (255, 255, 0))
+
+        if time.time() - self.last_calculation_time > self.hrv_calculation_interval:
+            self.calc_hrv(bvp[0, :], 0)
+            self.calc_hrv(bvp[1, :], 1)
+            self.calc_hrv(bvp[2, :], 2)
+            self.last_calculation_time = time.time()
+
+        quality_all = np.sum(quality)
+        if quality_all > 0:
+            confidence = quality / quality_all
+            self.bpm_avg = np.matmul(np.array([self.bpm_fore, self.bpm_left, self.bpm_right]), confidence.transpose())
+        else:
+            confidence = np.array([0, 0, 0])
+            self.bpm_avg = 60
+
+        bpm_dict = {
+            "前额测量心率": [self.bpm_fore, confidence[0]],
+            "左脸颊测量心率": [self.bpm_left, confidence[1]],
+            "右脸颊测量心率": [self.bpm_right, confidence[2]],
+            "最终心率": [self.bpm_avg, 1]
+        }
+        self.display_bpm(bpm_dict)
+        self.info_label.setText(f"Fps: \t\t{self.series_class.fps:.2f}")
 
     def closeEvent(self, a0):
         super().closeEvent(a0)

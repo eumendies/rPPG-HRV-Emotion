@@ -8,55 +8,21 @@ import cv2 as cv
 import dlib
 import numpy as np
 import seaborn as sns
+from PyQt5.QtCore import QThread, pyqtSignal
+from constants import ONE_HOUR
 
 sns.set()
 
-
-class NumberedFrame:
-    """带序号的帧数据"""
-
-    def __init__(self, frame, frame_count):
-        self.frame = frame
-        self.frame_count = frame_count
-        self.masked_face = None
-        self.hist_left = None
-        self.hist_right = None
-        self.hist_fore = None
-
-    def set_hist(self, hist_left, hist_right, hist_fore):
-        self.hist_left = hist_left
-        self.hist_right = hist_right
-        self.hist_fore = hist_fore
+from entities import OrderedFrameQueue, NumberedFrame
 
 
-class FrameQueue:
-    """帧序列，其中的帧按时间戳排序，每次取出时间戳最小的"""
-
-    def __init__(self, maxsize=0):
-        self.queue = queue.PriorityQueue(maxsize=maxsize)
-        self.allow_frame_count = 0  # 最后被取出的帧的序号，如果新put进来的帧小于该号，则直接丢弃
-        self.mutex = threading.Lock()
-
-    def get_frame(self) -> NumberedFrame | None:
-        if self.queue.empty():
-            return None
-        with self.mutex:
-            # 保证取帧和给allow_frame_count赋值两个操作称为原子操作
-            _, frame = self.queue.get()
-            self.allow_frame_count = frame.frame_count
-            return frame
-
-    def put_frame(self, frame: NumberedFrame):
-        with self.mutex:
-            if self.allow_frame_count < frame.frame_count:
-                self.queue.put((frame.frame_count, frame))
-
-
-class CAM2FACE:
+class CAM2FACE(QThread):
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
+    image_signal = pyqtSignal(object)  # 发送处理后的图像
+    features_signal = pyqtSignal(object)
 
-    def __init__(self, num_process_threads=3) -> None:
-        # get face detector and 68 face landmark
+    def __init__(self, num_process_threads=4) -> None:
+        super().__init__()
         self.num_process_threads = num_process_threads
         self.detectors = [dlib.get_frontal_face_detector() for _ in range(num_process_threads)]
         self.predictors = [dlib.shape_predictor('data/shape_predictor_81_face_landmarks.dat') for _ in
@@ -70,8 +36,9 @@ class CAM2FACE:
             return
         self.fps = self.cam.get(cv.CAP_PROP_FPS)
 
-        # Initialize Queue for camera capture
-        self.QUEUE_MAX = 256
+        self.QUEUE_MAX = ONE_HOUR * self.fps  # 最多保存一小时内的数据
+
+        self.FEATURE_WINDOW = 256  # 用于展示可视化图的数据窗口大小
         self.QUEUE_WINDOWS = 64
         self.queue_rawframe = Queue()
         self.queue_sig_left = queue.PriorityQueue(maxsize=self.QUEUE_MAX)  # 左脸颊信号队列
@@ -80,41 +47,54 @@ class CAM2FACE:
 
         self.queue_time = Queue(maxsize=self.QUEUE_WINDOWS)
         self.mutex = threading.Lock()
+        self.until_stable = False   # 等到检测稳定后再将计算出来的特征emit，抛弃掉未稳定时计算的特征
+        self.stable_period = self.FEATURE_WINDOW / 2    # 抛弃FEATURE_WINDOW/2个数据
 
         self.ongoing = False
-        self.data_collected = False  # 队列是否已满，已满后才可视化信号
 
         # 多线程处理，使用优先队列保证处理后的帧有序
-        # TODO: 实际上仍可能有问题，比如线程1处理第1帧，线程2处理第2帧，
-        #  线程2连续处理完5帧后线程1才处理完第1帧，此时线程2的5帧可能已经被播放了，目前把迟到的帧丢弃
-        self.masked_face_queue = FrameQueue()
+        self.masked_face_queue = OrderedFrameQueue()
 
-        self.sig_left = None
-        self.sig_right = None
-        self.sig_fore = None
-
-    # Initialize process and start
-
-    def PROCESS_start(self):
+    def run(self):
         self.ongoing = True
         self.capture_thread = threading.Thread(target=self.capture_process)
+        self.capture_thread.start()
         self.roi_cal_threads = [threading.Thread(target=self.roi_cal_process, args=(i,), daemon=True) for i in
                                 range(self.num_process_threads)]
-
-        self.capture_thread.start()
         for thread in self.roi_cal_threads:
             thread.start()
 
-    def change_data_num(self, data_num):
-        self.QUEUE_MAX = data_num
-        self.queue_sig_left = queue.PriorityQueue(maxsize=self.QUEUE_MAX)
-        self.queue_sig_right = queue.PriorityQueue(maxsize=self.QUEUE_MAX)
-        self.queue_sig_fore = queue.PriorityQueue(maxsize=self.QUEUE_MAX)
-        self.sig_left = None
-        self.sig_right = None
-        self.sig_fore = None
+        while self.ongoing:
+            frame = self.masked_face_queue.get_frame()
+            if frame is not None:
+                self.image_signal.emit(frame)
 
-    # Process: capture frame from camera in specific fps of the camera
+            if (not self.until_stable
+                    and self.queue_sig_fore.qsize() > self.stable_period
+                    and self.queue_sig_right.qsize() > self.stable_period
+                    and self.queue_sig_left.qsize() > self.stable_period):
+                self.queue_sig_fore.queue.clear()
+                self.queue_sig_left.queue.clear()
+                self.queue_sig_right.queue.clear()
+                self.until_stable = True
+
+            if (self.queue_sig_fore.qsize() > self.FEATURE_WINDOW
+                    and self.queue_sig_right.qsize() > self.FEATURE_WINDOW
+                    and self.queue_sig_fore.qsize() > self.FEATURE_WINDOW):
+                fore_features = [value for _, value in copy.copy(self.queue_sig_fore.queue)]
+                left_features = [value for _, value in copy.copy(self.queue_sig_left.queue)]
+                right_features = [value for _, value in copy.copy(self.queue_sig_right.queue)]
+                min_len = min(len(fore_features), len(left_features), len(right_features))
+                features = np.array([fore_features[:min_len], left_features[:min_len], right_features[:min_len]])     # [3, len(queue), 3]
+                self.features_signal.emit(features)
+            self.msleep(20)
+
+    def change_data_num(self, data_num):
+        self.FEATURE_WINDOW = data_num
+        self.queue_sig_fore.queue.clear()
+        self.queue_sig_left.queue.clear()
+        self.queue_sig_right.queue.clear()
+
     def capture_process(self):
         while self.ongoing:
             ret, frame = self.cam.read()
@@ -123,7 +103,6 @@ class CAM2FACE:
                 break
             self.queue_rawframe.put(NumberedFrame(frame, time.time()))
 
-    # Process: calculate roi from raw frame
     def roi_cal_process(self, thread_id):
         while self.ongoing:
             numbered_frame = self.queue_rawframe.get()
@@ -142,15 +121,11 @@ class CAM2FACE:
                 numbered_frame.set_hist(hist_left, hist_right, hist_fore)
                 self.masked_face_queue.put_frame(numbered_frame)
                 with self.mutex:
-                    self.data_collected = self.queue_sig_fore.full()
                     if self.queue_sig_left.full():
-                        self.sig_left = [value for _, value in copy.copy(self.queue_sig_left.queue)]
                         self.queue_sig_left.get_nowait()
                     if self.queue_sig_right.full():
-                        self.sig_right = [value for _, value in copy.copy(self.queue_sig_right.queue)]
                         self.queue_sig_right.get_nowait()
                     if self.queue_sig_fore.full():
-                        self.sig_fore = [value for _, value in copy.copy(self.queue_sig_fore.queue)]
                         self.queue_sig_fore.get_nowait()
 
                     self.queue_sig_left.put_nowait((frame_count, self.hist2feature(hist_left)))
@@ -181,13 +156,14 @@ class CAM2FACE:
 
     # filter the image to ensure better performance
     def preprocess(self, img):
-        return cv.GaussianBlur(img, (5, 5), 0)
+        img = cv.resize(img, (1080, 720))  # TODO: 缩放图像减小计算量，需要先判断摄像头分辨率
+        # return cv.GaussianBlur(img, (5, 5), 0)
+        return img
 
     # Draw the ROI the image
     # ROI: left cheek and right cheek
     def ROI(self, numbered_frame: NumberedFrame, detector, predictor):
         img = numbered_frame.frame
-        img = cv.resize(img, (1080, 720))  # TODO: 缩放图像减小计算量，需要先判断摄像头分辨率
         img = self.preprocess(img)
         landmark = self.detect_landmarks(img, detector, predictor)
 
@@ -259,10 +235,6 @@ class CAM2FACE:
         hist_g = hist[1]
         hist_b = hist[2]
 
-        # sgn_r = np.tanh(hist_r)
-        # sgn_g = np.tanh(hist_g)
-        # sgn_b = np.tanh(hist_b)
-
         hist_r /= np.sum(hist_r)
         hist_g /= np.sum(hist_g)
         hist_b /= np.sum(hist_b)
@@ -271,10 +243,7 @@ class CAM2FACE:
         mean_r = dens.dot(hist_r)
         mean_g = dens.dot(hist_g)
         mean_b = dens.dot(hist_b)
-
         return [mean_r, mean_g, mean_b]
-
-    # Deconstruction
 
     def __del__(self):
         self.ongoing = False
@@ -283,19 +252,6 @@ class CAM2FACE:
 
     def get_process(self):
         """收集数据进度"""
-        return self.queue_sig_fore.qsize() / self.QUEUE_MAX
-
-
-if __name__ == '__main__':
-    cam2roi = CAM2FACE()
-    cam2roi.PROCESS_start()
-    Hist_left_list = []
-    Hist_right_list = []
-    while True:
-        print(cam2roi.fps)
-    # time.sleep(1)
-    # while True:
-    # Hist_left = cam2roi.Queue_RGBhist_left.get()
-    # Hist_right = cam2roi.Queue_RGBhist_right.get()
-    # print(Hist_left)
-    # cam2roi.__del__()
+        if not self.until_stable:
+            return 0
+        return self.queue_sig_fore.qsize() / self.FEATURE_WINDOW

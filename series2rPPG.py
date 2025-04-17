@@ -9,14 +9,13 @@ import numpy as np
 import seaborn as sns
 from obspy.signal.detrend import polynomial
 from sklearn.decomposition import PCA
-
-from face2series import CAM2FACE
 from constants import ONE_MINUTE
 
 sns.set()
 
 
 class Series2rPPG:
+    """将signal转换为PPG信号，signal形状为[3, FEATURE_WINDOW, 3]"""
     def signal_preprocessing_single(self, sig):
         return polynomial(sig, order=2)
 
@@ -29,12 +28,12 @@ class Series2rPPG:
 
         return np.array([data_r, data_g, data_b]).T
 
-    def PBV(self, signal):
+    def PBV_2D(self, signal):
         sig_mean = np.mean(signal, axis=1)
 
-        sig_norm_r = signal[:, 0] / sig_mean[0]
-        sig_norm_g = signal[:, 1] / sig_mean[1]
-        sig_norm_b = signal[:, 2] / sig_mean[2]
+        sig_norm_r = signal[:, 0] / sig_mean
+        sig_norm_g = signal[:, 1] / sig_mean
+        sig_norm_b = signal[:, 2] / sig_mean
 
         pbv_n = np.array(
             [np.std(sig_norm_r), np.std(sig_norm_g), np.std(sig_norm_b)])
@@ -43,7 +42,6 @@ class Series2rPPG:
         pbv = pbv_n/pbv_d
 
         C = np.array([sig_norm_r, sig_norm_g, sig_norm_b])
-        print(C.shape)
         Ct = C.T
         Q = np.matmul(C, Ct)
         W = np.linalg.solve(Q, pbv)
@@ -53,7 +51,16 @@ class Series2rPPG:
         bvp = A / B
         return bvp
 
-    def POS(self, signal, sampling_rate, window=1.6):
+    def PBV(self, signal):
+        num_roi, _, _ = signal.shape
+        result = []
+        for i in range(num_roi):
+            bvp = self.PBV_2D(signal[i])
+            result.append(bvp)
+        return np.array(result)
+
+
+    def POS_2D(self, signal, sampling_rate, window=1.6):
         window = int(sampling_rate * window)
         H = np.full(len(signal), 0)
 
@@ -79,10 +86,45 @@ class Series2rPPG:
             H[t: t + window - 1] = H[t: t + window - 1] + (P - np.mean(P)) / np.std(P)
         return H
 
+    def POS(self, signal, sampling_rate, window=1.6):
+        """参照POS_2D修改的3D版本"""
+        num_roi, feature_window, channel = signal.shape
+        window = int(sampling_rate * window)
+        H = np.full([num_roi, feature_window], 0)
+
+        for t in range(0, (feature_window - window)):
+            # Spatial averaging
+            C = signal[:, t: t + window - 1, :].transpose(0, 2, 1)  # [num_roi=3, channel=3, window]
+
+            # Temporal normalization
+            mean_color = np.mean(C, axis=-1)    # [num_roi=3, channel=3]
+            try:
+                diag = np.apply_along_axis(np.diag, 1, mean_color)  # 将axis=1转化为对角矩阵，最终形状[num_roi=3, channel=3, channel=3]
+                Cn = np.matmul(np.linalg.inv(diag), C)  # [num_roi, channel, window]
+            except np.linalg.LinAlgError:  # Singular matrix
+                continue
+
+            # Projection
+            proj = np.array([[0, 1, -1], [-2, 1, 1]])
+            proj = np.repeat(proj[np.newaxis, :, :], num_roi, axis=0)
+            S = np.matmul(proj, Cn)     # [num_roi, 2, window]
+
+            # Tuning
+            ones_column = np.ones([num_roi, 1])
+            std = (np.std(S[:, 0, :], axis=1) / np.std(S[:, 1, :], axis=1))[np.newaxis, :].transpose(1, 0)
+            std = np.hstack([ones_column, std])[:, np.newaxis, :]   # [num_roi, 1, 2]
+            P = np.matmul(std, S)[:, 0, :]  # [num_roi, window]
+
+            # Overlap-Adding
+            P_mean = np.mean(P, axis=-1, keepdims=True)
+            P_std = np.std(P, axis=-1, keepdims=True)
+            H[:, t: t + window - 1] = H[:, t: t + window - 1] + (P - P_mean) / P_std
+        return H
+
     def CHROM(self, signal):
         X = signal
-        Xcomp = 3 * X[:, 0] - 2 * X[:, 1]
-        Ycomp = (1.5 * X[:, 0]) + X[:, 1] - (1.5 * X[:, 2])
+        Xcomp = 3 * X[:, :, 0] - 2 * X[:, :, 1]
+        Ycomp = (1.5 * X[:, :, 0]) + X[:, :, 1] - (1.5 * X[:, :, 2])
         sX = np.std(Xcomp)
         sY = np.std(Ycomp)
         alpha = sX / sY
@@ -102,12 +144,25 @@ class Series2rPPG:
 
     def GREEN(self, signal):
         """使用G通道作为最终信号"""
-        return signal[:, 1]
+        return signal[:, :, 1]
 
     def GREEN_RED(self, signal):
         """使用G通道和R通道的线性组合作为最终信号"""
-        return signal[:, 1] - signal[:, 0]
+        return signal[:, :, 1] - signal[:, :, 0]
 
     def cal_bpm(self, pre_bpm, spec, fps):
         return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * ONE_MINUTE * 0.05
 
+
+if __name__ == '__main__':
+    processor = Series2rPPG()
+    signal = np.random.rand(3, 256, 3) * 256
+    bvp = processor.PBV(signal)
+    print(bvp)
+    print(bvp.shape)
+
+    # processor = Series2rPPG()
+    # signal = np.random.rand(256, 3) * 256
+    # bvp = processor.PBV_2D(signal)
+    # print(bvp)
+    # print(bvp.shape)
