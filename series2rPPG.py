@@ -6,6 +6,7 @@ LastEditTime: 2025-04-10 14:30:00
 Description:
 """
 import numpy as np
+import scipy
 import seaborn as sns
 from obspy.signal.detrend import polynomial
 from sklearn.decomposition import PCA
@@ -29,11 +30,16 @@ class Series2rPPG:
         return np.array([data_r, data_g, data_b]).T
 
     def PBV_2D(self, signal):
+        """
+        args:
+            signal: shape [T, 3]
+        """
+        signal = signal.T
         sig_mean = np.mean(signal, axis=1)
 
-        sig_norm_r = signal[:, 0] / sig_mean
-        sig_norm_g = signal[:, 1] / sig_mean
-        sig_norm_b = signal[:, 2] / sig_mean
+        sig_norm_r = signal[0, :] / sig_mean[0]
+        sig_norm_g = signal[1, :] / sig_mean[1]
+        sig_norm_b = signal[2, :] / sig_mean[2]
 
         pbv_n = np.array(
             [np.std(sig_norm_r), np.std(sig_norm_g), np.std(sig_norm_b)])
@@ -153,16 +159,22 @@ class Series2rPPG:
     def cal_bpm(self, pre_bpm, spec, fps):
         return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * ONE_MINUTE * 0.05
 
+    def calculate_peak_hr(self, signal, fs=30):
+        """Calculate heart rate based on PPG using peak detection."""
+        ppg_peaks, _ = scipy.signal.find_peaks(signal)
+        hr_peak = 60 / (np.mean(np.diff(ppg_peaks)) / fs)
+        return hr_peak
+
 
 if __name__ == '__main__':
-    processor = Series2rPPG()
-    signal = np.random.rand(3, 256, 3) * 256
-    bvp = processor.PBV(signal)
-    print(bvp)
-    print(bvp.shape)
-
     # processor = Series2rPPG()
-    # signal = np.random.rand(256, 3) * 256
-    # bvp = processor.PBV_2D(signal)
+    # signal = np.random.rand(3, 256, 3) * 256
+    # bvp = processor.PBV(signal)
     # print(bvp)
     # print(bvp.shape)
+
+    processor = Series2rPPG()
+    signal = np.random.rand(256, 3) * 256
+    bvp = processor.PBV_2D(signal)
+    print(bvp)
+    print(bvp.shape)

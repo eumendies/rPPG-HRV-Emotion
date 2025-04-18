@@ -34,7 +34,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.processor = Series2rPPG()
         self.series_class = CAM2FACE()
 
-        self.hrv_calculation_interval = 5   # 每5秒计算一次HRV
+        self.hrv_calculation_interval = 10   # HRV计算间隔(秒)
         self.last_calculation_time = 0
 
         self.bpm_fore = 60
@@ -111,7 +111,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         set_hist_data(hist_right, self.Hist_right_r, self.Hist_right_g, self.Hist_right_b)
 
     # Creates the specified Butterworth filter and applies it.
-    def butterworth_filter(self, data, low, high, sample_rate, order=11):
+    def butterworth_filter(self, data, sample_rate, low=MIN_HZ, high=MAX_HZ, order=11):
         """巴特沃斯滤波器"""
         nyquist_rate = sample_rate * 0.5
         low /= nyquist_rate
@@ -153,7 +153,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 self.time_hrv_table.setItem(row, col, item)
             for col in range(self.freq_hrv_table.columnCount()):
                 header = self.freq_hrv_table.horizontalHeaderItem(col).text()
-                item = QTableWidgetItem(str(round(hrv[header].item(), 2)))
+                item = QTableWidgetItem(str(round(hrv[header].item(), 4)))
                 item.setTextAlignment(Qt.AlignCenter)
                 self.freq_hrv_table.setItem(row, col, item)
 
@@ -175,8 +175,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         bvp_raw = bvp[:, -self.series_class.FEATURE_WINDOW:]  # [3, FEATURE_WINDOW]
         quality = 1 / (np.max(bvp_raw, axis=-1) - np.min(bvp_raw, axis=-1))
         bvp_filtered = np.array([self.butterworth_filter(self.processor.signal_preprocessing_single(bvp_raw[i, :]),
-                                                         MIN_HZ, MAX_HZ, self.series_class.fps, order=5)
-                                 for i in range(3)])
+                                                         sample_rate=self.series_class.fps, order=5) for i in range(3)])
         spec = np.abs(np.fft.fft(bvp_filtered))
 
         self.bpm_fore = self.processor.cal_bpm(self.bpm_fore, spec[0, :], self.series_class.fps)
@@ -188,9 +187,10 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.plot_bvp_and_spec(bvp_raw[2, :], bvp_filtered[2, :], spec[2, :], self.Sig_r, self.Spec_r, (255, 255, 0))
 
         if time.time() - self.last_calculation_time > self.hrv_calculation_interval:
-            self.calc_hrv(bvp[0, :], 0)
-            self.calc_hrv(bvp[1, :], 1)
-            self.calc_hrv(bvp[2, :], 2)
+            # TODO: HRV频域分析需要长时间的数据，因此需要使用包含全量数据的bvp来进行计算
+            self.calc_hrv(bvp_filtered[0, :], 0)
+            self.calc_hrv(bvp_filtered[1, :], 1)
+            self.calc_hrv(bvp_filtered[2, :], 2)
             self.last_calculation_time = time.time()
 
         quality_all = np.sum(quality)
