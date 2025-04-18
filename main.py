@@ -16,7 +16,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from scipy import signal
 
-from constants import RED_PEN, GREEN_PEN, BLUE_PEN, ONE_MINUTE
+from constants import RED_PEN, GREEN_PEN, BLUE_PEN, ONE_MINUTE, FFT_HR, PEAK_HR
 from face2series import CAM2FACE
 from hrv import ppg_hrv
 from mainwindow import Ui_MainWindow
@@ -43,12 +43,14 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
         self.bpm_avg = 60
         self.Mode = 'GREEN'
+        self.hr_mode = FFT_HR    # 心率计算方式，包括FFT和Peak两种方式
         self.Data_ShowRaw = True  # 展示原始信号或滤波信号
         self.slot_init()
 
     def slot_init(self):
         self.comboBox.activated[str].connect(self.combobox_change_mode)
         self.comboBox_data_num.activated[str].connect(self.combobox_change_data_num)
+        self.comboBox_hr_method.activated[str].connect(self.combobox_change_hr_mode)
         self.Button_Raw.clicked.connect(self.button_data_raw_true)
         self.Button_Filtered.clicked.connect(self.button_data_raw_false)
 
@@ -59,14 +61,8 @@ class MainWin(QMainWindow, Ui_MainWindow):
     def combobox_change_mode(self, str):
         self.Mode = str
 
-    def button_data_raw_true(self):
-        self.Data_ShowRaw = True
-
-    def button_data_raw_false(self):
-        self.Data_ShowRaw = False
-
     def combobox_change_data_num(self, data_num):
-        if data_num == '采集数据量(默认256)':
+        if data_num == '采集数据量(默认256帧)':
             data_num = 256
         if data_num != self.series_class.QUEUE_MAX:
             self.series_class.change_data_num(int(data_num))
@@ -76,6 +72,21 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.Spec_l.setData([0], [0])
         self.Sig_r.setData([0], [0])
         self.Spec_r.setData([0], [0])
+
+    def combobox_change_hr_mode(self, mode):
+        """更改心率计算方式"""
+        if mode == '心率计算方式(默认FFT)' or mode == 'FFT':
+            self.hr_mode = FFT_HR
+        elif mode == 'Peak':
+            self.hr_mode = PEAK_HR
+        else:
+            self.hr_mode = FFT_HR
+
+    def button_data_raw_true(self):
+        self.Data_ShowRaw = True
+
+    def button_data_raw_false(self):
+        self.Data_ShowRaw = False
 
     def display_image_and_hist(self, numbered_frame):
         """展示前置摄像头画面"""
@@ -178,9 +189,12 @@ class MainWin(QMainWindow, Ui_MainWindow):
                                                          sample_rate=self.series_class.fps, order=5) for i in range(3)])
         spec = np.abs(np.fft.fft(bvp_filtered))
 
-        self.bpm_fore = self.processor.cal_bpm(self.bpm_fore, spec[0, :], self.series_class.fps)
-        self.bpm_left = self.processor.cal_bpm(self.bpm_left, spec[1, :], self.series_class.fps)
-        self.bpm_right = self.processor.cal_bpm(self.bpm_right, spec[2, :], self.series_class.fps)
+        self.bpm_fore = self.processor.cal_bpm(self.bpm_fore, bvp_filtered[0, :], spec[0, :],
+                                               self.series_class.fps, mode=self.hr_mode)
+        self.bpm_left = self.processor.cal_bpm(self.bpm_left, bvp_filtered[1, :], spec[1, :],
+                                               self.series_class.fps, mode=self.hr_mode)
+        self.bpm_right = self.processor.cal_bpm(self.bpm_right, bvp_filtered[2, :], spec[2, :],
+                                                self.series_class.fps, mode=self.hr_mode)
 
         self.plot_bvp_and_spec(bvp_raw[0, :], bvp_filtered[0, :], spec[0, :], self.Sig_f, self.Spec_f, (0, 255, 255))
         self.plot_bvp_and_spec(bvp_raw[1, :], bvp_filtered[1, :], spec[1, :], self.Sig_l, self.Spec_l, (255, 0, 255))

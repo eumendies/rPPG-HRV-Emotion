@@ -11,6 +11,7 @@ import seaborn as sns
 from obspy.signal.detrend import polynomial
 from sklearn.decomposition import PCA
 from constants import ONE_MINUTE
+from constants import FFT_HR, PEAK_HR
 
 sns.set()
 
@@ -156,14 +157,23 @@ class Series2rPPG:
         """使用G通道和R通道的线性组合作为最终信号"""
         return signal[:, :, 1] - signal[:, :, 0]
 
-    def cal_bpm(self, pre_bpm, spec, fps):
-        return pre_bpm * 0.95 + np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * ONE_MINUTE * 0.05
+    def cal_bpm(self, pre_bpm, signal, spec, fps, mode=FFT_HR):
+        if mode == FFT_HR:
+            return self.calculate_fft_hr(pre_bpm, spec, fps)
+        elif mode == PEAK_HR:
+            return self.calculate_peak_hr(pre_bpm, signal, fps)
+        else:
+            return pre_bpm
 
-    def calculate_peak_hr(self, signal, fs=30):
+    def calculate_fft_hr(self, pre_bpm, spec, fps):
+        current_bpm = np.argmax(spec[:int(len(spec) / 2)]) / len(spec) * fps * ONE_MINUTE
+        return pre_bpm * 0.95 + current_bpm * 0.05
+
+    def calculate_peak_hr(self, pre_bpm, signal, fs=30):
         """Calculate heart rate based on PPG using peak detection."""
         ppg_peaks, _ = scipy.signal.find_peaks(signal)
-        hr_peak = 60 / (np.mean(np.diff(ppg_peaks)) / fs)
-        return hr_peak
+        current_bpm = ONE_MINUTE / (np.mean(np.diff(ppg_peaks)) / fs)
+        return pre_bpm * 0.95 + current_bpm * 0.05
 
 
 if __name__ == '__main__':

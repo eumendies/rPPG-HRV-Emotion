@@ -91,9 +91,9 @@ class CAM2FACE(QThread):
 
     def change_data_num(self, data_num):
         self.FEATURE_WINDOW = data_num
-        self.queue_sig_fore.queue.clear()
-        self.queue_sig_left.queue.clear()
-        self.queue_sig_right.queue.clear()
+        # self.queue_sig_fore.queue.clear()
+        # self.queue_sig_left.queue.clear()
+        # self.queue_sig_right.queue.clear()
 
     def capture_process(self):
         while self.ongoing:

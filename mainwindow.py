@@ -31,11 +31,19 @@ class Ui_MainWindow(object):
         self.comboBox_data_num = QComboBox()
         self.comboBox_data_num.setMinimumSize(QtCore.QSize(0, 28))
         self.comboBox_data_num.setMaximumSize(QtCore.QSize(16777215, 28))
-        self.comboBox_data_num.addItem("采集数据量(默认256)")
+        self.comboBox_data_num.addItem("采集数据量(默认256帧)")
         self.comboBox_data_num.addItem("256")
         self.comboBox_data_num.addItem("512")
         self.comboBox_data_num.addItem("1024")
         self.comboBox_data_num.addItem("2048")
+
+        # 多选框，用于选择心率计算方式
+        self.comboBox_hr_method = QComboBox()
+        self.comboBox_hr_method.setMinimumSize(QtCore.QSize(0, 28))
+        self.comboBox_hr_method.setMaximumSize(QtCore.QSize(16777215, 28))
+        self.comboBox_hr_method.addItem("心率计算方式(默认FFT)")
+        self.comboBox_hr_method.addItem("FFT")
+        self.comboBox_hr_method.addItem("Peak")
 
         # 显示原始信号、滤波信号的按钮
         self.Button_Raw = QPushButton()
@@ -45,6 +53,7 @@ class Ui_MainWindow(object):
 
         self.buttons_layout.addWidget(self.comboBox)
         self.buttons_layout.addWidget(self.comboBox_data_num)
+        self.buttons_layout.addWidget(self.comboBox_hr_method)
         self.buttons_layout.addWidget(self.Button_Raw)
         self.buttons_layout.addWidget(self.Button_Filtered)
 
