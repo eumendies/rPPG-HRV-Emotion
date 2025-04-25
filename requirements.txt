@@ -1,7 +1,7 @@
 dlib==19.24.6
 matplotlib==3.7.1
 neurokit2==0.2.10
-numpy==2.2.4
+numpy==2.2.5
 obspy==1.4.1
 opencv_contrib_python==4.11.0.86
 opencv_python==4.11.0.86

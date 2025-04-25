@@ -47,8 +47,8 @@ class CAM2FACE(QThread):
 
         self.queue_time = Queue(maxsize=self.QUEUE_WINDOWS)
         self.mutex = threading.Lock()
-        self.until_stable = False   # 等到检测稳定后再将计算出来的特征emit，抛弃掉未稳定时计算的特征
-        self.stable_period = self.FEATURE_WINDOW / 2    # 抛弃FEATURE_WINDOW/2个数据
+        self.until_stable = False  # 等到检测稳定后再将计算出来的特征emit，抛弃掉未稳定时计算的特征
+        self.stable_period = self.FEATURE_WINDOW / 2  # 抛弃FEATURE_WINDOW/2个数据
 
         self.ongoing = False
 

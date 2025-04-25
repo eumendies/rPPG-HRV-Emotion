@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>imgs/detection.png</file>
+    </qresource>
+</RCC>
