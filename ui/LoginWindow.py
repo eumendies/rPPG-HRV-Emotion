@@ -1,22 +1,25 @@
 import sys
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QApplication, QStackedWidget
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QApplication, QStackedWidget, QMainWindow
 
 from IdLoginPanel import IdLoginPanel
 from FaceLoginPanel import FaceLoginPanel
 from color_const import MAIN_THEME_DARK
+from Background import LowPolyBackground
 
 
-class LoginWindow(QWidget):
+class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("登录")
         self.setGeometry(100, 100, 1080, 720)
-        self.setStyleSheet(f"background-color: {MAIN_THEME_DARK};")
+
+        self.bg = LowPolyBackground(point_count=80)
+        self.setCentralWidget(self.bg)
 
         # 创建主布局
-        self.main_layout = QHBoxLayout()
+        self.main_layout = QHBoxLayout(self.bg)
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.login_panel = QStackedWidget()
