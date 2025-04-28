@@ -10,6 +10,7 @@ from assets import resource
 
 class FaceLoginPanel(QWidget):
     switch_mode = pyqtSignal()
+    login_signal = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -32,7 +33,7 @@ class FaceLoginPanel(QWidget):
 
         # 人脸识别区域
         square = SquareWidget(280, 5, MAIN_THEME)
-        camera = CameraWidget(label_size=250, square_size=850)
+        self.camera = CameraWidget(label_size=250, square_size=850)
 
         face_recognition_frame = QLabel()
         face_recognition_frame.setPixmap(QPixmap(":/imgs/detection.png"))
@@ -41,7 +42,7 @@ class FaceLoginPanel(QWidget):
         face_recognition_frame.setFixedSize(250, 200)
         face_recognition_frame.setStyleSheet(f"background-color: rgba(0,0,0,0);")
 
-        camera_and_frame = OverlayWidget(camera, face_recognition_frame)
+        camera_and_frame = OverlayWidget(self.camera, face_recognition_frame)
 
         detection_zone = OverlayWidget(square, camera_and_frame)
 
@@ -78,6 +79,7 @@ class FaceLoginPanel(QWidget):
         login_button.setStyleSheet(
             "background-color: #4a86e8; color: white; border: none; padding: 10px 20px; border-radius: 5px;")
         login_button.setFixedHeight(40)
+        login_button.clicked.connect(self.login)
         panel_layout.addWidget(login_button)
 
         panel.setLayout(panel_layout)
@@ -86,3 +88,12 @@ class FaceLoginPanel(QWidget):
 
     def switch(self):
         self.switch_mode.emit()
+
+    def login(self):
+        self.login_signal.emit()
+
+    def start_camera(self):
+        self.camera.start_camera()
+
+    def close_camera(self):
+        self.camera.close_camera()

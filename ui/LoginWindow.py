@@ -11,6 +11,7 @@ from DetectionWindow import DetectionWindow
 
 class LoginWindow(QMainWindow):
     close_signal = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("登录")
@@ -33,26 +34,27 @@ class LoginWindow(QMainWindow):
         self.login_panel.addWidget(self.face_login_panel)
 
         self.id_login_panel.login_signal.connect(self.login)
+        self.face_login_panel.login_signal.connect(self.login)
 
         self.main_layout.addStretch()
         self.main_layout.addWidget(self.login_panel)
         self.main_layout.addStretch()
 
-        self.setLayout(self.main_layout)
-
     def login(self):
-        # self.username_label.setVisible(True)
-        # new_window = FaceCaptureWidget()
-        # new_window.show()
-        # new_window.exec_()
         self.close_signal.emit()
         self.close()
 
     def show_face_login(self):
         self.login_panel.setCurrentIndex(1)
+        self.face_login_panel.start_camera()
 
     def show_id_login(self):
         self.login_panel.setCurrentIndex(0)
+        self.face_login_panel.close_camera()
+
+    def closeEvent(self, a0):
+        self.face_login_panel.close_camera()
+        super().closeEvent(a0)
 
 
 if __name__ == "__main__":

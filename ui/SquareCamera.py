@@ -12,10 +12,9 @@ class CameraWidget(QWidget):
         self.label_size = label_size
         self.square_size = square_size
         self.init_ui()
-        self.cap = cv2.VideoCapture(0)
+        self.cap = None
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(30)
 
     def init_ui(self):
         self.label = QLabel(self)
@@ -45,6 +44,16 @@ class CameraWidget(QWidget):
         x1, y1 = center_x - half_size, center_y - half_size
         x2, y2 = center_x + half_size, center_y + half_size
         return frame[y1:y2, x1:x2]
+
+    def start_camera(self):
+        self.cap = cv2.VideoCapture(0)
+        self.timer.start(30)
+
+    def close_camera(self):
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+        self.timer.stop()
 
     def closeEvent(self, event):
         self.cap.release()

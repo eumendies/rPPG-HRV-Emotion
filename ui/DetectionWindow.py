@@ -54,7 +54,7 @@ class DetectionWindow(QMainWindow):
         square = SquareWidget(280, 5, MAIN_THEME)
         progress = CircularProgress(progress_width=15)
         progress.setFixedSize(550, 550)
-        camera = CameraWidget(label_size=250, square_size=850)
+        self.camera = CameraWidget(label_size=250, square_size=850)
 
         # 辅助框
         face_recognition_frame = QLabel()
@@ -64,7 +64,7 @@ class DetectionWindow(QMainWindow):
         face_recognition_frame.setFixedSize(250, 200)
         face_recognition_frame.setStyleSheet(f"background-color: rgba(0,0,0,0);")
 
-        camera_and_frame = OverlayWidget(camera, face_recognition_frame)
+        camera_and_frame = OverlayWidget(self.camera, face_recognition_frame)
         detection_zone = OverlayWidget(square, camera_and_frame)
         detection_zone = OverlayWidget(progress, detection_zone)
         panel_layout.addWidget(detection_zone, 0, Qt.AlignmentFlag.AlignCenter)
@@ -80,6 +80,14 @@ class DetectionWindow(QMainWindow):
         layout.addStretch()
         layout.addWidget(panel)
         layout.addStretch()
+
+    def showEvent(self, a0):
+        self.camera.start_camera()
+        super().showEvent(a0)
+
+    def closeEvent(self, a0):
+        self.camera.close_camera()
+        super().closeEvent(a0)
 
 
 if __name__ == "__main__":
