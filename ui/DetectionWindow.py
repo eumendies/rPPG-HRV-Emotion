@@ -1,4 +1,6 @@
+import os
 import sys
+from queue import Queue
 
 import cv2
 from PyQt5.QtCore import Qt
@@ -13,18 +15,22 @@ from .SquareWidget import SquareWidget
 from .color_const import MAIN_THEME
 from .assets import resource
 
-MIN_HZ = 0.83  # 50 BPM - minimum allowed heart rate
-MAX_HZ = 2.5  # 150 BPM - maximum allowed heart rate
-
 
 class DetectionWindow(QMainWindow):
-    def __init__(self, series_class=None):
+    def __init__(self, series_class=None, crop_size=850):
         super().__init__()
         self.setWindowTitle("检测")
         self.setGeometry(100, 100, 1080, 720)
         self.init_ui()
+
+        self.crop_size = crop_size
         self.series_class = series_class
         self.series_class.image_signal.connect(self.display_image)
+
+        # 帧队列，检测完毕后保存视频
+        self.frame_queue = Queue()
+        self.video_count = 0
+        self.fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
     def init_ui(self):
         self.bg = LowPolyBackground(point_count=80)
@@ -93,11 +99,12 @@ class DetectionWindow(QMainWindow):
         self.series_class.stop()
         self.face.setPixmap(QPixmap())
         self.progress_bar.update_progress(0)
+        self.output_video()
 
-    def crop_to_square(self, frame, size=850):
+    def crop_to_square(self, frame):
         height, width = frame.shape[:2]
         center_x, center_y = width // 2, height // 2
-        half_size = size // 2
+        half_size = self.crop_size // 2
         x1, y1 = center_x - half_size, center_y - half_size
         x2, y2 = center_x + half_size, center_y + half_size
         return frame[y1:y2, x1:x2, :]
@@ -107,6 +114,7 @@ class DetectionWindow(QMainWindow):
             frame = numbered_frame.frame
             frame = cv2.flip(frame, 1)
             frame = self.crop_to_square(frame)
+            self.frame_queue.put(frame)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             h, w, ch = frame.shape
             bytes_per_line = ch * w
@@ -118,8 +126,19 @@ class DetectionWindow(QMainWindow):
         progress = self.series_class.get_progress() * 100
         self.progress_bar.update_progress(progress)
         if progress >= 100:
+            signals = self.series_class.get_signals()
             self.pause_detection()
             self.stack_button_prompt.setCurrentIndex(0)
+
+    def output_video(self):
+        video_name = f"student_{self.video_count}.mp4"
+        video_path = os.path.join("output", video_name)
+        video_writer = cv2.VideoWriter(video_path, self.fourcc, 30, (self.crop_size, self.crop_size))
+        while not self.frame_queue.empty():
+            frame = self.frame_queue.get()
+            video_writer.write(frame)
+        self.video_count += 1
+        video_writer.release()
 
 
 if __name__ == "__main__":

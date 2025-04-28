@@ -77,9 +77,9 @@ class CAM2FACE(QThread):
                 self.queue_sig_right.queue.clear()
                 self.until_stable = True
 
-            if (self.queue_sig_fore.qsize() > self.FEATURE_WINDOW
-                    and self.queue_sig_right.qsize() > self.FEATURE_WINDOW
-                    and self.queue_sig_fore.qsize() > self.FEATURE_WINDOW):
+            if (self.queue_sig_fore.qsize() >= self.FEATURE_WINDOW
+                    and self.queue_sig_right.qsize() >= self.FEATURE_WINDOW
+                    and self.queue_sig_fore.qsize() >= self.FEATURE_WINDOW):
                 fore_features = [value for _, value in copy.copy(self.queue_sig_fore.queue)]
                 left_features = [value for _, value in copy.copy(self.queue_sig_left.queue)]
                 right_features = [value for _, value in copy.copy(self.queue_sig_right.queue)]
@@ -251,9 +251,9 @@ class CAM2FACE(QThread):
         return [mean_r, mean_g, mean_b]
 
     def get_signals(self):
-        if (self.queue_sig_fore.qsize() > self.FEATURE_WINDOW
-                and self.queue_sig_right.qsize() > self.FEATURE_WINDOW
-                and self.queue_sig_fore.qsize() > self.FEATURE_WINDOW):
+        if (self.queue_sig_fore.qsize() >= self.FEATURE_WINDOW
+                and self.queue_sig_right.qsize() >= self.FEATURE_WINDOW
+                and self.queue_sig_fore.qsize() >= self.FEATURE_WINDOW):
             fore_features = [value for _, value in copy.copy(self.queue_sig_fore.queue)]
             left_features = [value for _, value in copy.copy(self.queue_sig_left.queue)]
             right_features = [value for _, value in copy.copy(self.queue_sig_right.queue)]
@@ -272,4 +272,6 @@ class CAM2FACE(QThread):
         """收集数据进度"""
         if not self.until_stable:
             return 0
-        return self.queue_sig_fore.qsize() / self.FEATURE_WINDOW
+        return min(self.queue_sig_fore.qsize() / self.FEATURE_WINDOW,
+                   self.queue_sig_left.qsize() / self.FEATURE_WINDOW,
+                   self.queue_sig_right.qsize() / self.FEATURE_WINDOW)
