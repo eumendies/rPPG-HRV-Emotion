@@ -6,7 +6,7 @@ from PyQt5.QtGui import QPainter, QColor, QPolygonF
 from PyQt5.QtWidgets import QWidget
 from scipy.spatial import Delaunay
 
-from color_const import MAIN_THEME, MAIN_THEME_DARK
+from .color_const import MAIN_THEME, MAIN_THEME_DARK
 
 
 class LowPolyBackground(QWidget):

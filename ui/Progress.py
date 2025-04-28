@@ -3,7 +3,7 @@ import sys
 from PyQt5.QtCore import Qt, QTimer, QRectF
 from PyQt5.QtGui import QPainter, QColor, QPen
 from PyQt5.QtWidgets import QApplication, QWidget
-from color_const import MAIN_THEME
+from .color_const import MAIN_THEME
 
 
 class CircularProgress(QWidget):
@@ -16,15 +16,8 @@ class CircularProgress(QWidget):
         self.progress_width = progress_width
         self.text_color = QColor(74, 134, 232)
 
-        # 设置定时器更新进度
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_progress)
-        self.timer.start(50)
-
-    def update_progress(self):
-        self.progress += 0.03
-        if self.progress > self.max_progress:
-            self.progress = 0
+    def update_progress(self, progress):
+        self.progress = progress
         self.update()
 
     def paintEvent(self, event):
@@ -50,14 +43,6 @@ class CircularProgress(QWidget):
         painter.setPen(pen)
         painter.drawArc(QRectF(-length / 2.5, -length / 2.5, length * 2 / 2.5, length * 2 / 2.5), 90 * 16, -int(360 * self.progress / self.max_progress) * 16)
         painter.restore()
-
-        # 绘制进度文本
-        # painter.save()
-        # painter.setFont(self.font())
-        # painter.setFont(QFont('Arial', self.font_size))
-        # painter.setPen(self.text_color)
-        # painter.drawText(QRectF(-width / 2, -height / 2, width, height), Qt.AlignCenter, f"{self.progress}%")
-        # painter.restore()
 
 
 if __name__ == "__main__":

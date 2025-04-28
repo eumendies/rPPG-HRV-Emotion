@@ -3,10 +3,10 @@ import sys
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import QHBoxLayout, QApplication, QStackedWidget, QMainWindow
 
-from Background import LowPolyBackground
-from FaceLoginPanel import FaceLoginPanel
-from IdLoginPanel import IdLoginPanel
-from DetectionWindow import DetectionWindow
+from .Background import LowPolyBackground
+from .FaceLoginPanel import FaceLoginPanel
+from .IdLoginPanel import IdLoginPanel
+from .DetectionWindow import DetectionWindow
 
 
 class LoginWindow(QMainWindow):

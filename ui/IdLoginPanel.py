@@ -1,6 +1,6 @@
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout
-from color_const import MAIN_THEME, DARK_GRAY
+from .color_const import MAIN_THEME, DARK_GRAY
 
 
 class IdLoginPanel(QWidget):

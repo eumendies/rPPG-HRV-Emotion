@@ -1,11 +1,12 @@
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame, QPushButton
-from color_const import MAIN_THEME
-from SquareWidget import SquareWidget
-from SquareCamera import CameraWidget
-from OverlapWidget import OverlayWidget
-from assets import resource
+from .color_const import MAIN_THEME
+from .SquareWidget import SquareWidget
+from .SquareCamera import CameraWidget
+from .OverlapWidget import OverlayWidget
+from .color_const import MAIN_THEME
+from .assets import resource
 
 
 class FaceLoginPanel(QWidget):
@@ -77,7 +78,7 @@ class FaceLoginPanel(QWidget):
         # 登录按钮
         login_button = QPushButton("登录")
         login_button.setStyleSheet(
-            "background-color: #4a86e8; color: white; border: none; padding: 10px 20px; border-radius: 5px;")
+            f"background-color: {MAIN_THEME}; color: white; border: none; padding: 10px 20px; border-radius: 5px;")
         login_button.setFixedHeight(40)
         login_button.clicked.connect(self.login)
         panel_layout.addWidget(login_button)

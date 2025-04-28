@@ -71,4 +71,5 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     widget = CameraWidget(label_size=200, square_size=850)  # Set the size of the square region
     widget.show()
+    widget.start_camera()
     sys.exit(app.exec_())

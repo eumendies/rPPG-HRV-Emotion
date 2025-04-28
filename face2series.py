@@ -10,10 +10,9 @@ import numpy as np
 import seaborn as sns
 from PyQt5.QtCore import QThread, pyqtSignal
 from constants import ONE_HOUR
+from entities import OrderedFrameQueue, NumberedFrame
 
 sns.set()
-
-from entities import OrderedFrameQueue, NumberedFrame
 
 
 class CAM2FACE(QThread):
@@ -48,7 +47,7 @@ class CAM2FACE(QThread):
         self.queue_time = Queue(maxsize=self.QUEUE_WINDOWS)
         self.mutex = threading.Lock()
         self.until_stable = False  # 等到检测稳定后再将计算出来的特征emit，抛弃掉未稳定时计算的特征
-        self.stable_period = self.FEATURE_WINDOW / 2  # 抛弃FEATURE_WINDOW/2个数据
+        self.stable_period = 128  # 抛弃128个数据
 
         self.ongoing = False
 
@@ -85,15 +84,21 @@ class CAM2FACE(QThread):
                 left_features = [value for _, value in copy.copy(self.queue_sig_left.queue)]
                 right_features = [value for _, value in copy.copy(self.queue_sig_right.queue)]
                 min_len = min(len(fore_features), len(left_features), len(right_features))
-                features = np.array([fore_features[:min_len], left_features[:min_len], right_features[:min_len]])     # [3, len(queue), 3]
+                features = np.array(
+                    [fore_features[:min_len], left_features[:min_len], right_features[:min_len]])  # [3, len(queue), 3]
                 self.features_signal.emit(features)
             self.msleep(20)
 
+    def stop(self):
+        self.ongoing = False
+        self.queue_rawframe.queue.clear()
+        self.queue_sig_right.queue.clear()
+        self.queue_sig_fore.queue.clear()
+        self.queue_sig_left.queue.clear()
+        self.queue_time.queue.clear()
+
     def change_data_num(self, data_num):
         self.FEATURE_WINDOW = data_num
-        # self.queue_sig_fore.queue.clear()
-        # self.queue_sig_left.queue.clear()
-        # self.queue_sig_right.queue.clear()
 
     def capture_process(self):
         while self.ongoing:
@@ -245,12 +250,25 @@ class CAM2FACE(QThread):
         mean_b = dens.dot(hist_b)
         return [mean_r, mean_g, mean_b]
 
+    def get_signals(self):
+        if (self.queue_sig_fore.qsize() > self.FEATURE_WINDOW
+                and self.queue_sig_right.qsize() > self.FEATURE_WINDOW
+                and self.queue_sig_fore.qsize() > self.FEATURE_WINDOW):
+            fore_features = [value for _, value in copy.copy(self.queue_sig_fore.queue)]
+            left_features = [value for _, value in copy.copy(self.queue_sig_left.queue)]
+            right_features = [value for _, value in copy.copy(self.queue_sig_right.queue)]
+            min_len = min(len(fore_features), len(left_features), len(right_features))
+            features = np.array(
+                [fore_features[:min_len], left_features[:min_len], right_features[:min_len]])  # [3, len(queue), 3]
+            return features
+        return None
+
     def __del__(self):
         self.ongoing = False
         self.cam.release()
         cv.destroyAllWindows()
 
-    def get_process(self):
+    def get_progress(self):
         """收集数据进度"""
         if not self.until_stable:
             return 0

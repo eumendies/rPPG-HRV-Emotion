@@ -96,9 +96,9 @@ class MainWin(QMainWindow, Ui_MainWindow):
             qimg = QImage(img.data, img.shape[1], img.shape[0], QImage.Format_RGB888)
             self.face.setPixmap(QPixmap.fromImage(qimg))
             self.display_hist(numbered_frame.hist_left, numbered_frame.hist_right, numbered_frame.hist_fore)
-        if self.series_class.get_process() < 1:
+        if self.series_class.get_progress() < 1:
             self.info_label.setText(f"Fps: \t\t{self.series_class.fps:.2f}\n"
-                                    f"收集数据中: \t\t{100 * self.series_class.get_process():.2f}%")
+                                    f"收集数据中: \t\t{100 * self.series_class.get_progress():.2f}%")
 
 
     def display_hist(self, hist_left, hist_right, hist_fore):
