@@ -1,15 +1,16 @@
 import sys
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QApplication, QStackedWidget, QMainWindow
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtWidgets import QHBoxLayout, QApplication, QStackedWidget, QMainWindow
 
-from IdLoginPanel import IdLoginPanel
-from FaceLoginPanel import FaceLoginPanel
-from color_const import MAIN_THEME_DARK
 from Background import LowPolyBackground
+from FaceLoginPanel import FaceLoginPanel
+from IdLoginPanel import IdLoginPanel
+from DetectionWindow import DetectionWindow
 
 
 class LoginWindow(QMainWindow):
+    close_signal = pyqtSignal()
     def __init__(self):
         super().__init__()
         self.setWindowTitle("登录")
@@ -31,6 +32,8 @@ class LoginWindow(QMainWindow):
         self.login_panel.addWidget(self.id_login_panel)
         self.login_panel.addWidget(self.face_login_panel)
 
+        self.id_login_panel.login_signal.connect(self.login)
+
         self.main_layout.addStretch()
         self.main_layout.addWidget(self.login_panel)
         self.main_layout.addStretch()
@@ -38,7 +41,12 @@ class LoginWindow(QMainWindow):
         self.setLayout(self.main_layout)
 
     def login(self):
-        self.username_label.setVisible(True)
+        # self.username_label.setVisible(True)
+        # new_window = FaceCaptureWidget()
+        # new_window.show()
+        # new_window.exec_()
+        self.close_signal.emit()
+        self.close()
 
     def show_face_login(self):
         self.login_panel.setCurrentIndex(1)
@@ -51,4 +59,6 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = LoginWindow()
     window.show()
+    new_window = DetectionWindow()
+    window.close_signal.connect(new_window.show)
     sys.exit(app.exec())

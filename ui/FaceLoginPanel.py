@@ -2,9 +2,9 @@ from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame, QPushButton
 from color_const import MAIN_THEME
-from Square import SquareWidget
+from SquareWidget import SquareWidget
 from SquareCamera import CameraWidget
-from Overlap import OverlayWidget
+from OverlapWidget import OverlayWidget
 from assets import resource
 
 

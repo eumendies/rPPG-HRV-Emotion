@@ -24,6 +24,7 @@ class CameraWidget(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.label)
         self.setLayout(layout)
+        self.setContentsMargins(0, 0, 0, 0)
 
     def update_frame(self):
         ret, frame = self.cap.read()

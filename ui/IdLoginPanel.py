@@ -5,6 +5,7 @@ from color_const import MAIN_THEME, DARK_GRAY
 
 class IdLoginPanel(QWidget):
     switch_mode = pyqtSignal()
+    login_signal = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -53,6 +54,7 @@ class IdLoginPanel(QWidget):
         self.login_button.setStyleSheet(
             f"background-color: {MAIN_THEME}; color: white; border: none; padding: 10px 20px; border-radius: 5px;")
         self.login_button.setFixedHeight(40)
+        self.login_button.clicked.connect(self.login)
 
         # 添加到主布局
         self.panel_layout.addWidget(self.title_label)
@@ -68,3 +70,6 @@ class IdLoginPanel(QWidget):
 
     def switch(self):
         self.switch_mode.emit()
+
+    def login(self):
+        self.login_signal.emit()
