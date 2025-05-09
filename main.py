@@ -93,6 +93,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         if numbered_frame is not None:
             masked_face = numbered_frame.masked_face
             img = cv.cvtColor(masked_face, cv.COLOR_BGR2RGB)
+            img = cv.flip(img, 1)
             qimg = QImage(img.data, img.shape[1], img.shape[0], QImage.Format_RGB888)
             self.face.setPixmap(QPixmap.fromImage(qimg))
             self.display_hist(numbered_frame.hist_left, numbered_frame.hist_right, numbered_frame.hist_fore)

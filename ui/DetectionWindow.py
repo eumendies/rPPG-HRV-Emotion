@@ -1,12 +1,13 @@
 import os
 import sys
+import threading
 from queue import Queue
 
 import cv2
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, \
-    QStackedWidget
+    QStackedWidget, QMessageBox
 
 from .Background import LowPolyBackground
 from .OverlapWidget import OverlayWidget
@@ -99,7 +100,8 @@ class DetectionWindow(QMainWindow):
         self.series_class.stop()
         self.face.setPixmap(QPixmap())
         self.progress_bar.update_progress(0)
-        self.output_video()
+        thread = threading.Thread(target=self.output_video)
+        thread.start()
 
     def crop_to_square(self, frame):
         height, width = frame.shape[:2]
@@ -129,6 +131,31 @@ class DetectionWindow(QMainWindow):
             signals = self.series_class.get_signals()
             self.pause_detection()
             self.stack_button_prompt.setCurrentIndex(0)
+            # 创建消息框
+            msg_box = QMessageBox()
+            msg_box.setText("检测完毕")
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.button(QMessageBox.Ok).setText("确定")
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: white;
+                }
+                QLabel {
+                    font-size: 16px;
+                    color: #4a86e8;
+                }
+                QPushButton {
+                    background-color: #4a86e8;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #5a96f8;
+                }
+            """)
+            msg_box.exec_()
 
     def output_video(self):
         video_name = f"student_{self.video_count}.mp4"
