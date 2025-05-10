@@ -19,6 +19,7 @@ class CAM2FACE(QThread):
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
     image_signal = pyqtSignal(object)  # 发送处理后的图像
     features_signal = pyqtSignal(object)
+    undetected_signal = pyqtSignal()
 
     def __init__(self, num_process_threads=4) -> None:
         super().__init__()
@@ -148,6 +149,7 @@ class CAM2FACE(QThread):
                 self.queue_sig_left.queue.clear()
                 self.queue_sig_right.queue.clear()
                 self.queue_sig_fore.queue.clear()
+                self.undetected_signal.emit()
 
     def detect_landmarks(self, img, detector, predictor):
         """获取脸部关键点"""

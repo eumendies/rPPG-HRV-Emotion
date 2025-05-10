@@ -13,4 +13,5 @@ if __name__ == '__main__':
 
     new_window = DetectionWindow(series_class=series_class)
     window.close_signal.connect(new_window.show)
+    window.login_signal.connect(new_window.set_student_id)
     sys.exit(app.exec())

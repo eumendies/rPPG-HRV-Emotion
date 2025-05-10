@@ -1,11 +1,12 @@
 from PyQt5.QtCore import pyqtSignal, Qt
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox
 from .color_const import MAIN_THEME, DARK_GRAY
+from api import get_student_info
 
 
 class IdLoginPanel(QWidget):
     switch_mode = pyqtSignal()
-    login_signal = pyqtSignal()
+    login_signal = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -72,4 +73,15 @@ class IdLoginPanel(QWidget):
         self.switch_mode.emit()
 
     def login(self):
-        self.login_signal.emit()
+        id = self.id_input.text()
+        if not id.isdigit():
+            QMessageBox.warning(self, "错误", "学号必须为纯数字")
+            self.id_input.setText("")
+            return
+
+        _, info = get_student_info(int(id))
+        if info is None or 'studentID' not in info:
+            QMessageBox.warning(self, "错误", "学号不存在")
+            self.id_input.setText("")
+            return
+        self.login_signal.emit(info['studentID'])

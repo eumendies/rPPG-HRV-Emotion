@@ -11,6 +11,7 @@ from .DetectionWindow import DetectionWindow
 
 class LoginWindow(QMainWindow):
     close_signal = pyqtSignal()
+    login_signal = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
@@ -40,7 +41,8 @@ class LoginWindow(QMainWindow):
         self.main_layout.addWidget(self.login_panel)
         self.main_layout.addStretch()
 
-    def login(self):
+    def login(self, student_id):
+        self.login_signal.emit(student_id)
         self.close_signal.emit()
         self.close()
 

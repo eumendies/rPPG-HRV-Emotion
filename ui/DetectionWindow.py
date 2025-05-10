@@ -1,9 +1,11 @@
 import os
 import sys
 import threading
+import uuid
 from queue import Queue
 
 import cv2
+import numpy as np
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, \
@@ -15,11 +17,14 @@ from .Progress import CircularProgress
 from .SquareWidget import SquareWidget
 from .color_const import MAIN_THEME
 from .assets import resource
+from api import send_process_data, upload_video_file
 
 
 class DetectionWindow(QMainWindow):
     def __init__(self, series_class=None, crop_size=850):
         super().__init__()
+        self.student_id = None
+        self.detection_id = None
         self.setWindowTitle("检测")
         self.setGeometry(100, 100, 1080, 720)
         self.init_ui()
@@ -27,6 +32,7 @@ class DetectionWindow(QMainWindow):
         self.crop_size = crop_size
         self.series_class = series_class
         self.series_class.image_signal.connect(self.display_image)
+        self.series_class.undetected_signal.connect(self.clear_frame)
 
         # 帧队列，检测完毕后保存视频
         self.frame_queue = Queue()
@@ -93,8 +99,9 @@ class DetectionWindow(QMainWindow):
 
     def start_detection(self):
         self.series_class.start()
-        self.series_class.change_data_num(1024)
+        self.series_class.change_data_num(2048)
         self.stack_button_prompt.setCurrentIndex(1)
+        self.detection_id = uuid.uuid4().hex
 
     def pause_detection(self):
         self.series_class.stop()
@@ -129,6 +136,9 @@ class DetectionWindow(QMainWindow):
         self.progress_bar.update_progress(progress)
         if progress >= 100:
             signals = self.series_class.get_signals()
+            signals = np.around(signals, decimals=4)
+            send_process_data(self.detection_id, self.student_id, signals.tolist())
+
             self.pause_detection()
             self.stack_button_prompt.setCurrentIndex(0)
             # 创建消息框
@@ -166,6 +176,18 @@ class DetectionWindow(QMainWindow):
             video_writer.write(frame)
         self.video_count += 1
         video_writer.release()
+        result = upload_video_file(self.student_id, self.detection_id, video_path)
+        print(result)
+        if "error" not in result:
+            os.remove(video_path)
+        else:
+            print("上传失败")
+        
+    def set_student_id(self, student_id):
+        self.student_id = student_id
+
+    def clear_frame(self):
+        self.frame_queue.queue.clear()
 
 
 if __name__ == "__main__":
