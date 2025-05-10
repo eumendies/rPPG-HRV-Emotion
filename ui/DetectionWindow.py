@@ -177,7 +177,6 @@ class DetectionWindow(QMainWindow):
         self.video_count += 1
         video_writer.release()
         result = upload_video_file(self.student_id, self.detection_id, video_path)
-        print(result)
         if "error" not in result:
             os.remove(video_path)
         else:
