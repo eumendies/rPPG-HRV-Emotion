@@ -1,6 +1,10 @@
+import joblib
 import neurokit2 as nk
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import StandardScaler
 
 
 def ppg_hrv(ppg_signal, sampling_rate):
@@ -45,6 +49,60 @@ def estimate_emotions(hrv_data):
         emotions[emotion] = emotions[emotion] / sum_scores
 
     return emotions
+
+
+def train_and_save_models(df, features, output_path):
+    """
+    训练无监督聚类模型并保存
+
+    参数:
+        df (DataFrame): 包含HRV时域特征的DataFrame
+        features (list): 要使用的特征列名
+        output_path (str): 模型保存的路径前缀
+
+    返回:
+        dict: 包含训练好的模型对象的字典
+    """
+    feature_data = df[features].values
+
+    scaler = StandardScaler()
+    feature_scaled = scaler.fit_transform(feature_data)
+
+    # 训练各种聚类模型
+    models = {
+        'KMeans': KMeans(n_clusters=2, random_state=42),
+        'GMM': GaussianMixture(n_components=2, random_state=42)
+    }
+    for name, model in models.items():
+        model.fit(feature_scaled)
+        joblib.dump((scaler, model), f"{output_path}_{name}.joblib")
+    return models
+
+
+def load_model_and_predict(model_path, new_data):
+    """
+    加载训练好的模型并进行预测
+
+    参数:
+        model_path (str): 模型文件路径
+        new_data (DataFrame): 包含待预测数据的DataFrame
+
+    返回:
+        int: 预测的聚类标签
+    """
+    scaler, model = joblib.load(model_path)
+    features = ["HRV_MeanNN", "HRV_SDNN", "HRV_RMSSD", "HRV_SDSD", "HRV_pNN50"]
+
+    # 需要至少2行数据才能使用scaler.transform
+    if len(new_data) == 1:
+        new_data = pd.concat([new_data, new_data], ignore_index=True)
+
+    X_new_scaled = scaler.transform(new_data[features])
+
+    if isinstance(model, DBSCAN):
+        return model.fit_predict(X_new_scaled)
+    else:
+        return model.predict(X_new_scaled)
 
 
 if __name__ == '__main__':
