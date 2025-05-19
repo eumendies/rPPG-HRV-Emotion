@@ -8,6 +8,7 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 from series2rPPG import array2ppg
+from plot import plot_ppg_signal
 
 
 def ppg_hrv(ppg_signal, sampling_rate):
@@ -108,15 +109,90 @@ def load_model_and_predict(model_path, new_data):
         return model.predict(X_new_scaled)
 
 
+def analyze_emotion_hrv(df):
+    """
+    输入：包含HRV参数的DataFrame（单行数据）
+    输出：情绪报告文本，心理评分（0-100）
+    """
+    # 提取参数值（示例值仅供格式参考）
+    params = df.iloc[0].to_dict()
+
+    # 情绪维度评估（基于文献的简化判断逻辑）
+    assessments = []
+
+    # 1. 压力水平评估
+    stress_score = 0
+    if params['HRV_SDNN'] < 50 or params['HRV_RMSSD'] < 30:
+        assessments.append("当前显示出较高压力水平，自主神经系统调节能力下降")
+        stress_score = 40
+    else:
+        assessments.append("压力水平处于正常范围，生理应激反应良好")
+        stress_score = 80
+
+    # 2. 情绪稳定性评估
+    mood_score = 0
+    if params['HRV_SD1'] / params['HRV_SD2'] < 0.5 or params['HRV_CSI'] > 150:
+        assessments.append("情绪波动较大，可能出现焦虑或情绪调节困难")
+        mood_score = 35
+    else:
+        assessments.append("情绪状态较为稳定，心理适应能力良好")
+        mood_score = 75
+
+    # 3. 自主神经平衡评估
+    balance_score = 0
+    if params['HRV_LFHF'] > 3:
+        assessments.append("交感神经活动偏强，可能处于紧张或亢奋状态")
+        balance_score = 45
+    elif params['HRV_LFHF'] < 0.5:
+        assessments.append("副交感神经活跃，需注意疲劳或能量不足状态")
+        balance_score = 55
+    else:
+        assessments.append("自主神经系统处于良好平衡状态")
+        balance_score = 85
+
+    # 4. 心理适应能力评估
+    adapt_score = 0
+    if params['HRV_SampEn'] < 1.2 or params['HRV_ApEn'] < 0.8:
+        assessments.append("心理生理系统灵活性不足，可能影响压力适应能力")
+        adapt_score = 50
+    else:
+        assessments.append("表现出良好的心理生理适应性和系统复杂性")
+        adapt_score = 90
+
+    # 综合评分（加权平均）
+    total_score = int((stress_score * 0.3 + mood_score * 0.25 + balance_score * 0.25 + adapt_score * 0.2))
+
+    # 生成报告
+    report = "情绪状态评估报告：\n" + "\n".join([f"{i + 1}. {item}" for i, item in enumerate(assessments)])
+    report += "建议：" + get_suggestions(total_score)
+
+    return report, total_score
+
+
+def get_suggestions(score):
+    if score >= 80:
+        return "保持当前状态，建议维持规律作息和适度运动"
+    elif score >= 60:
+        return "注意压力管理，可尝试冥想或深呼吸练习"
+    elif score >= 40:
+        return "建议进行专业压力检测，增加休闲放松时间"
+    else:
+        return "建议寻求专业心理支持，及时调整身心状态"
+
+
 if __name__ == '__main__':
     with open("./data/example.txt", 'r') as f:
         data = json.load(f)
         data = np.array(data)
     # ppg = nk.ppg_simulate(duration=30, sampling_rate=1000)
     _, ppg = array2ppg(data, sampling_rate=30)
+    plot_ppg_signal(ppg[0])
     df = ppg_hrv(ppg[0], 30)
     for i in df.columns:
         if pd.isna(df[i].item()):
             continue
         print(i)
     print(estimate_emotions(df))
+    report, score = analyze_emotion_hrv(df)
+    print(report)
+    print(score)
