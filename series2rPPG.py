@@ -12,6 +12,7 @@ from obspy.signal.detrend import polynomial
 from sklearn.decomposition import PCA
 from constants import ONE_MINUTE
 from constants import FFT_HR, PEAK_HR
+from scipy import signal
 
 sns.set()
 
@@ -176,6 +177,34 @@ class Series2rPPG:
         return pre_bpm * 0.95 + current_bpm * 0.05
 
 
+def butterworth_filter(data, sample_rate, low=0.83, high=2.5, order=11):
+    """巴特沃斯滤波器"""
+    nyquist_rate = sample_rate * 0.5
+    low /= nyquist_rate
+    high /= nyquist_rate
+    b, a = signal.butter(order, [low, high], btype='band')
+    return signal.lfilter(b, a, data)
+
+
+def array2ppg(arr, sampling_rate, mode='GREEN'):
+    processor = Series2rPPG()
+    if mode == 'GREEN':
+        bvp = processor.GREEN(arr)
+    elif mode == 'GREEN-RED':
+        bvp = processor.GREEN_RED(arr)
+    elif mode == 'CHROM':
+        bvp = processor.CHROM(arr)
+    elif mode == 'PBV':
+        bvp = processor.PBV(arr)
+    elif mode == 'POS':
+        bvp = processor.POS(arr, sampling_rate)
+    else:
+        bvp = processor.GREEN(arr)
+    bvp_filtered = np.array([butterworth_filter(processor.signal_preprocessing_single(bvp[i, :]),
+                                                     sample_rate=sampling_rate, order=5) for i in range(3)])
+    return bvp, bvp_filtered
+
+
 if __name__ == '__main__':
     # processor = Series2rPPG()
     # signal = np.random.rand(3, 256, 3) * 256
@@ -184,7 +213,7 @@ if __name__ == '__main__':
     # print(bvp.shape)
 
     processor = Series2rPPG()
-    signal = np.random.rand(256, 3) * 256
-    bvp = processor.PBV_2D(signal)
+    arr = np.random.rand(256, 3) * 256
+    bvp = processor.PBV_2D(arr)
     print(bvp)
     print(bvp.shape)

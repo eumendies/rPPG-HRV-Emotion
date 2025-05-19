@@ -1,3 +1,5 @@
+import json
+
 import joblib
 import neurokit2 as nk
 import numpy as np
@@ -5,6 +7,7 @@ import pandas as pd
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
+from series2rPPG import array2ppg
 
 
 def ppg_hrv(ppg_signal, sampling_rate):
@@ -12,9 +15,9 @@ def ppg_hrv(ppg_signal, sampling_rate):
     ppg_cleaned = nk.ppg_clean(ppg_signal, sampling_rate=sampling_rate)
     ppg_peaks, info = nk.ppg_peaks(ppg_cleaned, sampling_rate=sampling_rate)
     df_time = nk.hrv_time(ppg_peaks, sampling_rate=sampling_rate, show=False)
-    # df_freq = nk.hrv_frequency(ppg_peaks, sampling_rate=sampling_rate, show=False)
-    # return pd.concat([df_time, df_freq], axis=1)
-    return df_time
+    df_nonlinear = nk.hrv_nonlinear(ppg_peaks, sampling_rate=sampling_rate, show=False)
+    df_freq = nk.hrv_frequency(ppg_peaks, sampling_rate=sampling_rate, show=False)
+    return pd.concat([df_time, df_freq, df_nonlinear], axis=1)
 
 
 def estimate_emotions(hrv_data):
@@ -106,7 +109,14 @@ def load_model_and_predict(model_path, new_data):
 
 
 if __name__ == '__main__':
-    ppg = nk.ppg_simulate(duration=30, sampling_rate=1000)
-    df = ppg_hrv(ppg, 1000)
-    a = df['HRV_SDNN'].item()
+    with open("./data/example.txt", 'r') as f:
+        data = json.load(f)
+        data = np.array(data)
+    # ppg = nk.ppg_simulate(duration=30, sampling_rate=1000)
+    _, ppg = array2ppg(data, sampling_rate=30)
+    df = ppg_hrv(ppg[0], 30)
+    for i in df.columns:
+        if pd.isna(df[i].item()):
+            continue
+        print(i)
     print(estimate_emotions(df))
