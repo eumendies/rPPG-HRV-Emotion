@@ -2,13 +2,14 @@ import json
 
 import joblib
 import neurokit2 as nk
-import numpy as np
-import pandas as pd
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
-from series2rPPG import array2ppg
+
 from plot import plot_ppg_signal
+from series2rPPG import array2ppg
+import numpy as np
+import pandas as pd
 
 
 def ppg_hrv(ppg_signal, sampling_rate):
@@ -111,85 +112,125 @@ def load_model_and_predict(model_path, new_data):
 
 def analyze_emotion_hrv(df):
     """
-    输入：包含HRV参数的DataFrame（单行数据）
+    输入：包含前额、左脸颊、右脸颊三个区域HRV参数的DataFrame（三行数据）
     输出：情绪报告文本，心理评分（0-100）
     """
-    # 提取参数值（示例值仅供格式参考）
-    params = df.iloc[0].to_dict()
+    # 提取三个区域数据
+    forehead = df.iloc[0].to_dict()
+    left_cheek = df.iloc[1].to_dict()
+    right_cheek = df.iloc[2].to_dict()
 
-    # 情绪维度评估（基于文献的简化判断逻辑）
+    # 动态权重计算（基于信号质量指标）
+    def calculate_weights(*params_list):
+        # 质量评估指标：SDNN反映整体变异性，RMSSD反映高频成分，SampEn反映信号复杂度
+        quality_scores = [
+            p['HRV_SDNN'] * 0.4 +
+            p['HRV_RMSSD'] * 0.3 +
+            p['HRV_SampEn'] * 0.3
+            for p in params_list
+        ]
+        total = sum(quality_scores)
+        return [s / total if total != 0 else 1 / 3 for s in quality_scores]
+
+    weights = calculate_weights(forehead, left_cheek, right_cheek)
+
+    # 参数融合函数
+    def integrate_params(param_name):
+        vals = [forehead.get(param_name, 0),
+                left_cheek.get(param_name, 0),
+                right_cheek.get(param_name, 0)]
+        return np.average(vals, weights=weights)
+
+    # 综合参数计算
+    integrated = {key: integrate_params(key) for key in forehead.keys()}
+
+    # 情绪维度评估
     assessments = []
 
-    # 1. 压力水平评估
-    stress_score = 0
-    if params['HRV_SDNN'] < 50 or params['HRV_RMSSD'] < 30:
-        assessments.append("当前显示出较高压力水平，自主神经系统调节能力下降")
-        stress_score = 40
+    # 1. 压力水平评估（动态阈值）
+    stress_thresh = 250 + integrated['HRV_TP'] * 100  # TP越大阈值适当提高
+    stress_score = 100 - (max(0, stress_thresh - integrated['HRV_SDNN']) * 1.2 +
+                         max(0, (400 - integrated['HRV_RMSSD']) * 0.2))
+    if integrated['HRV_SDNN'] < 50 or integrated['HRV_RMSSD'] < 30:
+        assessments.append("多区域检测显示压力水平较高，建议立即放松调节")
     else:
-        assessments.append("压力水平处于正常范围，生理应激反应良好")
-        stress_score = 80
+        assessments.append("各区域压力指标均在健康范围，保持良好状态")
 
-    # 2. 情绪稳定性评估
-    mood_score = 0
-    if params['HRV_SD1'] / params['HRV_SD2'] < 0.5 or params['HRV_CSI'] > 150:
-        assessments.append("情绪波动较大，可能出现焦虑或情绪调节困难")
-        mood_score = 35
+    # 2. 情绪稳定性评估（基于多区域一致性）
+    std_ratio = np.std([forehead['HRV_SD1SD2'],
+                        left_cheek['HRV_SD1SD2'],
+                        right_cheek['HRV_SD1SD2']])
+    mood_score = max(0, 100 - std_ratio * 50)
+    if std_ratio > 1.5:
+        assessments.append("多区域情绪波动差异显著，可能存在心理冲突")
+    elif integrated['HRV_CSI'] > 160:
+        assessments.append("综合情绪稳定性偏低，建议进行正念训练")
     else:
-        assessments.append("情绪状态较为稳定，心理适应能力良好")
-        mood_score = 75
+        assessments.append("各区域情绪信号协调，心理状态稳定")
 
-    # 3. 自主神经平衡评估
-    balance_score = 0
-    if params['HRV_LFHF'] > 3:
-        assessments.append("交感神经活动偏强，可能处于紧张或亢奋状态")
-        balance_score = 45
-    elif params['HRV_LFHF'] < 0.5:
-        assessments.append("副交感神经活跃，需注意疲劳或能量不足状态")
-        balance_score = 55
+    # 3. 神经平衡评估（动态模式分析）
+    lfhf_std = np.std([forehead['HRV_LFHF'],
+                       left_cheek['HRV_LFHF'],
+                       right_cheek['HRV_LFHF']])
+    balance_score = max(0, 100 - abs(integrated['HRV_LFHF'] - 0.5) * 20 - lfhf_std * 15)
+    if lfhf_std > 0.8:
+        assessments.append("自主神经调节存在区域失衡现象")
+    elif integrated['HRV_LFHF'] > 2.5:
+        assessments.append("交感神经活动整体偏强，注意过度紧张")
+    elif integrated['HRV_LFHF'] < 0.8:
+        assessments.append("副交感神经优势状态，适合恢复休整")
     else:
-        assessments.append("自主神经系统处于良好平衡状态")
-        balance_score = 85
+        assessments.append("自主神经系统处于理想平衡状态")
 
-    # 4. 心理适应能力评估
-    adapt_score = 0
-    if params['HRV_SampEn'] < 1.2 or params['HRV_ApEn'] < 0.8:
-        assessments.append("心理生理系统灵活性不足，可能影响压力适应能力")
-        adapt_score = 50
+    # 4. 心理韧性评估（多维度复合）
+    entropy_avg = (integrated['HRV_SampEn'] + integrated['HRV_ApEn']) / 2
+    adapt_score = min(100, 70 + entropy_avg * 15 -
+                      integrated['HRV_SI'] * 0.3)
+    if adapt_score < 60:
+        assessments.append("心理生理系统适应性不足，需增强应变能力")
     else:
-        assessments.append("表现出良好的心理生理适应性和系统复杂性")
-        adapt_score = 90
+        assessments.append("表现出优秀的心理弹性和适应能力")
 
-    # 综合评分（加权平均）
-    total_score = int((stress_score * 0.3 + mood_score * 0.25 + balance_score * 0.25 + adapt_score * 0.2))
+    # 动态加权总分
+    total_score = np.clip(
+        stress_score * 0.3 +
+        mood_score * 0.25 +
+        balance_score * 0.25 +
+        adapt_score * 0.2,
+        0, 100)
 
     # 生成报告
-    report = "情绪状态评估报告：\n" + "\n".join([f"{i + 1}. {item}" for i, item in enumerate(assessments)])
+    report = "情绪评估报告：\n" + "\n".join(
+        [f"{i + 1}. {item}" for i, item in enumerate(assessments)])
+    report += "\n"
     report += "建议：" + get_suggestions(total_score)
 
     return report, total_score
 
 
 def get_suggestions(score):
-    if score >= 80:
-        return "保持当前状态，建议维持规律作息和适度运动"
-    elif score >= 60:
-        return "注意压力管理，可尝试冥想或深呼吸练习"
-    elif score >= 40:
-        return "建议进行专业压力检测，增加休闲放松时间"
+    if score >= 85:
+        return "保持当前良好状态，注意维持工作生活平衡"
+    elif score >= 65:
+        return "建议进行日常压力管理，每周3次有氧运动"
+    elif score >= 45:
+        return "推荐进行专业心理评估，配合放松训练"
     else:
-        return "建议寻求专业心理支持，及时调整身心状态"
+        return "建议立即寻求专业心理咨询干预"
 
 
 if __name__ == '__main__':
     with open("./data/example.txt", 'r') as f:
         data = json.load(f)
         data = np.array(data)
-    # ppg = nk.ppg_simulate(duration=30, sampling_rate=1000)
+    # ppg = nk.ppg_simulate(duration=3000, sampling_rate=1000)
+    # df = ppg_hrv(ppg, 1000)
+    # df = pd.concat([df, df, df], axis=0)
     _, ppg = array2ppg(data, sampling_rate=30)
     plot_ppg_signal(ppg[0])
-    df = ppg_hrv(ppg[0], 30)
+    df = pd.concat([pd.DataFrame(ppg_hrv(ppg[i], 30)) for i in range(3)], axis=0)
     for i in df.columns:
-        if pd.isna(df[i].item()):
+        if pd.isna(df[i].iloc[0]):
             continue
         print(i)
     print(estimate_emotions(df))
