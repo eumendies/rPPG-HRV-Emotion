@@ -227,7 +227,7 @@ if __name__ == '__main__':
     # df = ppg_hrv(ppg, 1000)
     # df = pd.concat([df, df, df], axis=0)
     _, ppg = array2ppg(data, sampling_rate=30)
-    plot_ppg_signal(ppg[0])
+    plot_ppg_signal(ppg)
     df = pd.concat([pd.DataFrame(ppg_hrv(ppg[i], 30)) for i in range(3)], axis=0)
     for i in df.columns:
         if pd.isna(df[i].iloc[0]):
