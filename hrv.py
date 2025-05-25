@@ -252,9 +252,9 @@ def analyze_emotion_hrv(df):
     stress_score = 100 - (max(0, stress_thresh - integrated['HRV_SDNN']) * 1.2 +
                          max(0, (400 - integrated['HRV_RMSSD']) * 0.2))
     if integrated['HRV_SDNN'] < 50 or integrated['HRV_RMSSD'] < 30:
-        assessments.append("多区域检测显示压力水平较高，建议立即放松调节")
+        assessments.append("压力水平较高，建议放松调节")
     else:
-        assessments.append("各区域压力指标均在健康范围，保持良好状态")
+        assessments.append("压力指标健康，状态良好")
 
     # 2. 情绪稳定性评估（基于多区域一致性）
     std_ratio = np.std([forehead['HRV_SD1SD2'],
@@ -262,11 +262,11 @@ def analyze_emotion_hrv(df):
                         right_cheek['HRV_SD1SD2']])
     mood_score = max(0, 100 - std_ratio * 50)
     if std_ratio > 1.5:
-        assessments.append("多区域情绪波动差异显著，可能存在心理冲突")
+        assessments.append("情绪波动大，有心理冲突")
     elif integrated['HRV_CSI'] > 160:
-        assessments.append("综合情绪稳定性偏低，建议进行正念训练")
+        assessments.append("情绪稳定性低，需正念训练")
     else:
-        assessments.append("各区域情绪信号协调，心理状态稳定")
+        assessments.append("情绪稳定，状态良好")
 
     # 3. 神经平衡评估（动态模式分析）
     lfhf_std = np.std([forehead['HRV_LFHF'],
@@ -274,22 +274,22 @@ def analyze_emotion_hrv(df):
                        right_cheek['HRV_LFHF']])
     balance_score = max(0, 100 - abs(integrated['HRV_LFHF'] - 0.5) * 20 - lfhf_std * 15)
     if lfhf_std > 0.8:
-        assessments.append("自主神经调节存在区域失衡现象")
+        assessments.append("神经调节区域失衡")
     elif integrated['HRV_LFHF'] > 2.5:
-        assessments.append("交感神经活动整体偏强，注意过度紧张")
+        assessments.append("交感神经活动偏强，较紧张")
     elif integrated['HRV_LFHF'] < 0.8:
-        assessments.append("副交感神经优势状态，适合恢复休整")
+        assessments.append("副交感神经占优，适合休整")
     else:
-        assessments.append("自主神经系统处于理想平衡状态")
+        assessments.append("神经系统平衡良好")
 
     # 4. 心理韧性评估（多维度复合）
     entropy_avg = (integrated['HRV_SampEn'] + integrated['HRV_ApEn']) / 2
     adapt_score = min(100, 70 + entropy_avg * 15 -
                       integrated['HRV_SI'] * 0.3)
     if adapt_score < 60:
-        assessments.append("心理生理系统适应性不足，需增强应变能力")
+        assessments.append("心理韧性不足，需增强应变能力")
     else:
-        assessments.append("表现出优秀的心理弹性和适应能力")
+        assessments.append("心理韧性好，适应能力强")
 
     # 动态加权总分
     total_score = np.clip(
@@ -310,13 +310,13 @@ def analyze_emotion_hrv(df):
 
 def get_suggestions(score):
     if score >= 85:
-        return "保持当前良好状态，注意维持工作生活平衡"
+        return "保持良好状态，注意平衡生活"
     elif score >= 65:
-        return "建议进行日常压力管理，每周3次有氧运动"
+        return "管理日常压力，坚持有氧运动"
     elif score >= 45:
-        return "推荐进行专业心理评估，配合放松训练"
+        return "进行心理评估，配合放松训练"
     else:
-        return "建议立即寻求专业心理咨询干预"
+        return "寻求专业心理咨询帮助"
 
 
 if __name__ == '__main__':
