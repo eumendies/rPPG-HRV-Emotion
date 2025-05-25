@@ -1,15 +1,12 @@
-import json
+import random
 
 import joblib
 import neurokit2 as nk
+import numpy as np
+import pandas as pd
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
-
-from plot import plot_ppg_signal
-from series2rPPG import array2ppg
-import numpy as np
-import pandas as pd
 
 
 def ppg_hrv(ppg_signal, sampling_rate):
@@ -22,38 +19,141 @@ def ppg_hrv(ppg_signal, sampling_rate):
     return pd.concat([df_time, df_freq, df_nonlinear], axis=1)
 
 
-def estimate_emotions(hrv_data):
-    """
-    基于HRV时域指标估算情绪状态
+def calculate_emotion_scores(hrv_data):
+    # 定义情绪字典，包含六种情绪及其初始得分为0
+    emotion_scores = {
+        '愤怒': 0,
+        '厌恶': 0,
+        '恐惧': 0,
+        '快乐': 0,
+        '悲伤': 0,
+        '惊讶': 0
+    }
 
-    参数:
-    hrv_data -- 包含HRV时域指标的DataFrame，只有一行，包含以下列:
-                "HRV_MeanNN", "HRV_SDNN", "HRV_RMSSD", "HRV_SDSD", "HRV_pNN50"
+    # 获取HRV时域、频域和非线性指标
+    hrv_mean_nn = hrv_data['HRV_MeanNN'][0]
+    hrv_sdnn = hrv_data['HRV_SDNN'][0]
+    hrv_rmssd = hrv_data['HRV_RMSSD'][0]
+    hrv_sdsd = hrv_data['HRV_SDSD'][0]
+    hrv_pnn50 = hrv_data['HRV_pNN50'][0]
+    hrv_lf = hrv_data['HRV_LF'][0]
+    hrv_hf = hrv_data['HRV_HF'][0]
+    hrv_vhf = hrv_data['HRV_VHF'][0]
+    hrv_tp = hrv_data['HRV_TP'][0]
+    hrv_lf_hf = hrv_data['HRV_LFHF'][0]
+    hrv_sd1 = hrv_data['HRV_SD1'][0]
 
-    返回:
-    包含六种情绪得分的字典，每个情绪得分为0-1之间的值，总和为1
-    """
-    mean_nn = hrv_data["HRV_MeanNN"].values[0]
-    sdnn = hrv_data["HRV_SDNN"].values[0]
-    rmssd = hrv_data["HRV_RMSSD"].values[0]
-    sdsd = hrv_data["HRV_SDSD"].values[0]
-    pnn50 = hrv_data["HRV_pNN50"].values[0]
+    # 根据时域、频域和非线性指标计算情绪得分
+    # 愤怒
+    anger_score = 0
+    if hrv_pnn50 < 0.05:  # PNN50较低与压力增加、焦虑和抑郁等心理状态有关
+        anger_score += 2
+    if hrv_rmssd < 50:  # RMSSD的降低可能与压力增加、焦虑和抑郁等心理状态有关
+        anger_score += 3
+    if hrv_lf_hf > 1.5:  # 高兴和愤怒的LF/HF值较大
+        anger_score += 2
+    if hrv_sdsd > np.mean(hrv_data['HRV_SDSD']):  # 负性情绪的SDSD值较大
+        anger_score += 3
+    anger_score = min(10, max(0, anger_score))
 
-    emotions = {}
-    emotions["愤怒"] = 0.5 / sdnn + 0.3 / (pnn50 + 0.1) + 0.2 / (rmssd + 0.1)
-    emotions["厌恶"] = 0.4 / (sdnn + 0.1) + 0.3 / (rmssd + 0.1) + 0.3 / (pnn50 + 0.1)
-    emotions["恐惧"] = 0.6 / (sdnn + 0.01) + 0.3 / (rmssd + 0.01) + 0.1 / (pnn50 + 0.01)
-    emotions["快乐"] = 0.5 * np.log(sdnn + 1) + 0.3 * np.log(rmssd + 1) + 0.2 * np.log(pnn50 + 1)
-    emotions["悲伤"] = 0.2 * np.log(1 / (sdnn + 0.1)) + 0.3 * np.log(1 / (rmssd + 0.1)) + 0.5 * np.log(
-        1 / (pnn50 + 0.1))
-    emotions["惊讶"] = 0.4 * np.log(1 / (sdsd + 0.1)) + 0.3 * np.log(1 / (rmssd + 0.1)) + 0.3 * np.log(
-        1 / (pnn50 + 0.1))
+    # 厌恶
+    disgust_score = 0
+    if hrv_mean_nn < np.mean(hrv_data['HRV_MeanNN']) - 10:  # MeanNN较低可能与厌恶情绪有关
+        disgust_score += 2
+    if hrv_rmssd < 50:
+        disgust_score += 3
+    if hrv_hf < np.mean(hrv_data['HRV_HF']) - 50:  # 高频功率较低可能与厌恶情绪有关
+        disgust_score += 3
+    if hrv_sdsd > np.mean(hrv_data['HRV_SDSD']):
+        disgust_score += 2
+    disgust_score = min(10, max(0, disgust_score))
 
-    sum_scores = sum(emotions.values())
-    for emotion in emotions:
-        emotions[emotion] = emotions[emotion] / sum_scores
+    # 恐惧
+    fear_score = 0
+    if hrv_mean_nn < np.mean(hrv_data['HRV_MeanNN']) - 5:  # MeanNN较低可能与恐惧情绪有关
+        fear_score += 3
+    if hrv_sdnn < np.mean(hrv_data['HRV_SDNN']) - 10:  # SDNN较低可能与恐惧情绪有关
+        fear_score += 3
+    if hrv_lf_hf < 0.5:  # 恐惧情绪下LF/HF值可能较低
+        fear_score += 3
+    if hrv_sd1 > np.mean(hrv_data['HRV_SD1']) + 10:  # 恐惧情绪下非线性指标可能较大
+        fear_score += 2
+    fear_score = min(10, max(0, fear_score))
 
-    return emotions
+    # 快乐
+    happy_score = 0
+    if hrv_pnn50 > 0.2:  # PNN50较高与积极情绪有关
+        happy_score += 3
+    if hrv_rmssd > 70:  # RMSSD较高与积极情绪有关
+        happy_score += 3
+    if hrv_lf_hf > 1.5:
+        happy_score += 2
+    if hrv_sdnn > np.mean(hrv_data['HRV_SDNN']) + 10:  # 高兴和悲伤的SDNN值较大
+        happy_score += 3
+    happy_score = min(10, max(0, happy_score))
+
+    # 悲伤
+    sad_score = 0
+    if hrv_mean_nn > np.mean(hrv_data['HRV_MeanNN']) + 5:  # MeanNN较高可能与悲伤情绪有关
+        sad_score += 3
+    if hrv_sdnn > np.mean(hrv_data['HRV_SDNN']) + 10:
+        sad_score += 3
+    if hrv_tp > np.mean(hrv_data['HRV_TP']) + 50:  # 悲伤和愉悦的TP值较大
+        sad_score += 3
+    if hrv_hf > np.mean(hrv_data['HRV_HF']) + 50:  # 悲伤的高频功率PHF值较大
+        sad_score += 2
+    sad_score = min(10, max(0, sad_score))
+
+    # 惊讶
+    surprise_score = 0
+    if hrv_mean_nn > np.mean(hrv_data['HRV_MeanNN']) + 5:  # MeanNN较高可能与惊讶情绪有关
+        surprise_score += 2
+    if hrv_rmssd > 70:
+        surprise_score += 3
+    if hrv_sd1 > np.mean(hrv_data['HRV_SD1']) + 10:  # 惊讶情绪下非线性指标可能较大
+        surprise_score += 3
+    if hrv_lf > np.mean(hrv_data['HRV_LF']) + 50:  # 惊讶情绪下低频功率可能较大
+        surprise_score += 2
+    surprise_score = min(10, max(0, surprise_score))
+
+    # 添加情绪约束逻辑，快乐与悲伤、厌恶、恐惧、愤怒之间的约束
+    happy_threshold = 3  # 快乐得分阈值
+    if happy_score >= happy_threshold:
+        # 如果快乐得分较高，降低悲伤、厌恶、恐惧、愤怒的得分
+        sad_score = max(0, sad_score - 1)
+        disgust_score = max(0, disgust_score - 1)
+        fear_score = max(0, fear_score - 1)
+        anger_score = max(0, anger_score - 1)
+        # 确保其他情绪得分不超过快乐得分
+        sad_score = min(sad_score, happy_score - 1)
+        disgust_score = min(disgust_score, happy_score - 1)
+        fear_score = min(fear_score, happy_score - 1)
+        anger_score = min(anger_score, happy_score - 1)
+
+    # 重新计算情绪分数（确保分数在0-10范围内）
+    emotion_scores['愤怒'] = anger_score
+    emotion_scores['厌恶'] = disgust_score
+    emotion_scores['恐惧'] = fear_score
+    emotion_scores['快乐'] = happy_score
+    emotion_scores['悲伤'] = sad_score
+    emotion_scores['惊讶'] = surprise_score
+
+    # 检查情绪分数是否在合理范围内
+    for emotion in emotion_scores:
+        emotion_scores[emotion] = min(10, max(0, emotion_scores[emotion]))
+
+    # 如果所有情绪的分数都较低，认为心情平静，将所有情绪分数设为接近0的值
+    if all(score <= 2 for score in [anger_score, disgust_score, fear_score, happy_score, sad_score, surprise_score]):
+        emotion_scores = {emotion: random.Random().uniform(0.1, 0.5) for emotion in emotion_scores}
+    else:
+        emotion_scores['愤怒'] = anger_score
+        emotion_scores['厌恶'] = disgust_score
+        emotion_scores['恐惧'] = fear_score
+        emotion_scores['快乐'] = happy_score
+        emotion_scores['悲伤'] = sad_score
+        emotion_scores['惊讶'] = surprise_score
+
+    return emotion_scores
 
 
 def train_and_save_models(df, features, output_path):
@@ -220,20 +320,25 @@ def get_suggestions(score):
 
 
 if __name__ == '__main__':
-    with open("./data/example.txt", 'r') as f:
-        data = json.load(f)
-        data = np.array(data)
-    # ppg = nk.ppg_simulate(duration=3000, sampling_rate=1000)
-    # df = ppg_hrv(ppg, 1000)
-    # df = pd.concat([df, df, df], axis=0)
-    _, ppg = array2ppg(data, sampling_rate=30)
-    plot_ppg_signal(ppg)
-    df = pd.concat([pd.DataFrame(ppg_hrv(ppg[i], 30)) for i in range(3)], axis=0)
-    for i in df.columns:
-        if pd.isna(df[i].iloc[0]):
-            continue
-        print(i)
-    print(estimate_emotions(df))
-    report, score = analyze_emotion_hrv(df)
-    print(report)
-    print(score)
+    # with open("./data/example.txt", 'r') as f:
+    #     data = json.load(f)
+    #     data = np.array(data)
+    # # ppg = nk.ppg_simulate(duration=3000, sampling_rate=1000)
+    # # df = ppg_hrv(ppg, 1000)
+    # # df = pd.concat([df, df, df], axis=0)
+    # _, ppg = array2ppg(data, sampling_rate=30)
+    # plot_ppg_signal(ppg)
+    # df = pd.concat([pd.DataFrame(ppg_hrv(ppg[i], 30)) for i in range(3)], axis=0)
+    # for i in df.columns:
+    #     if pd.isna(df[i].iloc[0]):
+    #         continue
+    #     print(i)
+    # print(estimate_emotions(df))
+    # report, score = analyze_emotion_hrv(df)
+    # print(report)
+    # print(score)
+
+    ppg = nk.ppg_simulate(duration=30, sampling_rate=1000)
+    # 调用函数计算情绪得分
+    emotion_scores = calculate_emotion_scores(ppg_hrv(ppg, 1000))
+    print(emotion_scores)
