@@ -98,14 +98,15 @@ class DetectionWindow(QMainWindow):
         layout.addStretch()
 
     def start_detection(self):
+        self.clear_frame()
         self.series_class.start()
-        self.series_class.change_data_num(2048)
+        self.series_class.change_data_num(256)
         self.stack_button_prompt.setCurrentIndex(1)
         self.detection_id = uuid.uuid4().hex
 
     def pause_detection(self):
         self.series_class.stop()
-        self.face.setPixmap(QPixmap())
+        self.face.clear()
         self.progress_bar.update_progress(0)
         thread = threading.Thread(target=self.output_video)
         thread.start()
@@ -168,17 +169,26 @@ class DetectionWindow(QMainWindow):
             msg_box.exec_()
 
     def output_video(self):
-        video_name = f"student_{self.video_count}.mp4"
+        video_name = f"student_{self.student_id}.mp4"
         video_path = os.path.join("output", video_name)
         video_writer = cv2.VideoWriter(video_path, self.fourcc, 30, (self.crop_size, self.crop_size))
+
+        first_frame_saved = False  # 用于判断是否已保存首帧
+        first_frame_path = None
+
         while not self.frame_queue.empty():
             frame = self.frame_queue.get()
+            if not first_frame_saved:
+                first_frame_path = os.path.join("output", f"student_{self.student_id}_first_frame.png")
+                cv2.imwrite(first_frame_path, frame)  # 保存首帧
+                first_frame_saved = True
             video_writer.write(frame)
         self.video_count += 1
         video_writer.release()
-        result = upload_video_file(self.student_id, self.detection_id, video_path)
+        result = upload_video_file(self.student_id, self.detection_id, video_path, first_frame_path)
         if "error" not in result:
             os.remove(video_path)
+            os.remove(first_frame_path)
         else:
             print("上传失败")
         

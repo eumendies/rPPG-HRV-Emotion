@@ -45,16 +45,16 @@ def calculate_emotion_scores(hrv_data):
 
     # 根据时域、频域和非线性指标计算情绪得分
     # 愤怒
-    anger_score = 0
+    anger_score = 0.0
     if hrv_pnn50 < 0.05:  # PNN50较低与压力增加、焦虑和抑郁等心理状态有关
-        anger_score += 2
+        anger_score += 2.0
     if hrv_rmssd < 50:  # RMSSD的降低可能与压力增加、焦虑和抑郁等心理状态有关
-        anger_score += 3
+        anger_score += 3.0
     if hrv_lf_hf > 1.5:  # 高兴和愤怒的LF/HF值较大
-        anger_score += 2
+        anger_score += 2.0
     if hrv_sdsd > np.mean(hrv_data['HRV_SDSD']):  # 负性情绪的SDSD值较大
-        anger_score += 3
-    anger_score = min(10, max(0, anger_score))
+        anger_score += 3.0
+    anger_score = min(10.0, max(random.Random().uniform(0.1, 0.5), anger_score))
 
     # 厌恶
     disgust_score = 0
@@ -66,7 +66,7 @@ def calculate_emotion_scores(hrv_data):
         disgust_score += 3
     if hrv_sdsd > np.mean(hrv_data['HRV_SDSD']):
         disgust_score += 2
-    disgust_score = min(10, max(0, disgust_score))
+    disgust_score = min(10.0, max(random.Random().uniform(0.1, 0.5), disgust_score))
 
     # 恐惧
     fear_score = 0
@@ -78,7 +78,7 @@ def calculate_emotion_scores(hrv_data):
         fear_score += 3
     if hrv_sd1 > np.mean(hrv_data['HRV_SD1']) + 10:  # 恐惧情绪下非线性指标可能较大
         fear_score += 2
-    fear_score = min(10, max(0, fear_score))
+    fear_score = min(10.0, max(random.Random().uniform(0.1, 0.5), fear_score))
 
     # 快乐
     happy_score = 0
@@ -90,7 +90,7 @@ def calculate_emotion_scores(hrv_data):
         happy_score += 2
     if hrv_sdnn > np.mean(hrv_data['HRV_SDNN']) + 10:  # 高兴和悲伤的SDNN值较大
         happy_score += 3
-    happy_score = min(10, max(0, happy_score))
+    happy_score = min(10.0, max(random.Random().uniform(0.1, 0.5), happy_score))
 
     # 悲伤
     sad_score = 0
@@ -102,7 +102,7 @@ def calculate_emotion_scores(hrv_data):
         sad_score += 3
     if hrv_hf > np.mean(hrv_data['HRV_HF']) + 50:  # 悲伤的高频功率PHF值较大
         sad_score += 2
-    sad_score = min(10, max(0, sad_score))
+    sad_score = min(10.0, max(random.Random().uniform(0.1, 0.5), sad_score))
 
     # 惊讶
     surprise_score = 0
@@ -114,21 +114,21 @@ def calculate_emotion_scores(hrv_data):
         surprise_score += 3
     if hrv_lf > np.mean(hrv_data['HRV_LF']) + 50:  # 惊讶情绪下低频功率可能较大
         surprise_score += 2
-    surprise_score = min(10, max(0, surprise_score))
+    surprise_score = min(10.0, max(random.Random().uniform(0.1, 0.5), surprise_score))
 
     # 添加情绪约束逻辑，快乐与悲伤、厌恶、恐惧、愤怒之间的约束
     happy_threshold = 3  # 快乐得分阈值
     if happy_score >= happy_threshold:
         # 如果快乐得分较高，降低悲伤、厌恶、恐惧、愤怒的得分
-        sad_score = max(0, sad_score - 1)
-        disgust_score = max(0, disgust_score - 1)
-        fear_score = max(0, fear_score - 1)
-        anger_score = max(0, anger_score - 1)
+        sad_score = max(0.0, sad_score - 0.5)
+        disgust_score = max(0.0, disgust_score - 0.5)
+        fear_score = max(0.0, fear_score - 0.5)
+        anger_score = max(0.0, anger_score - 0.5)
         # 确保其他情绪得分不超过快乐得分
-        sad_score = min(sad_score, happy_score - 1)
-        disgust_score = min(disgust_score, happy_score - 1)
-        fear_score = min(fear_score, happy_score - 1)
-        anger_score = min(anger_score, happy_score - 1)
+        sad_score = min(sad_score, happy_score - 0.5)
+        disgust_score = min(disgust_score, happy_score - 0.5)
+        fear_score = min(fear_score, happy_score - 0.5)
+        anger_score = min(anger_score, happy_score - 0.5)
 
     # 重新计算情绪分数（确保分数在0-10范围内）
     emotion_scores['愤怒'] = anger_score

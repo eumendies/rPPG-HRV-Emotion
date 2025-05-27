@@ -110,22 +110,24 @@ def get_process_data_array(
         return False, {"error": str(e)}
 
 
-def upload_video_file(student_id, detection_uuid, file_path, server_url="http://localhost:8080"):
+def upload_video_file(student_id, detection_uuid, video_file_path, cover_file_path, server_url="http://localhost:8080"):
     """
     上传视频文件到指定的 API 接口
 
     :param student_id: 学生 ID
     :param detection_uuid: 检测 UUID
-    :param file_path: 视频文件路径
+    :param video_file_path: 视频文件路径
+    :param cover_file_path: 视频封面路径
     :param server_url: 服务器地址（默认 http://localhost:8080）
     :return: 响应 JSON 或异常信息
     """
     url = f"{server_url}/air/video/upload"
 
     try:
-        with open(file_path, "rb") as file:
+        with open(video_file_path, "rb") as video_file, open(cover_file_path, "rb") as cover_file:
             files = {
-                "videoFile": file
+                "videoFile": video_file,
+                "cover": cover_file
             }
             data = {
                 "studentId": student_id,

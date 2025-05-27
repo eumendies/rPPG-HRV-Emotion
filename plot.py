@@ -58,7 +58,7 @@ def plot_emotion_radar(emojis_scores):
     ax.set_yticks(range(0, 11, 2))
     ax.set_yticklabels(range(0, 11, 2), color='grey', size=12)
 
-    labels_with_scores = [f"{emotion}\n{score}" for emotion, score in zip(emotions, scores[:-1])]
+    labels_with_scores = [f"{emotion}\n{score:.1f}" for emotion, score in zip(emotions, scores[:-1])]
     ax.set_xticks(theta[:-1])
     ax.set_xticklabels(labels_with_scores, color='black', size=6, font=font)
 

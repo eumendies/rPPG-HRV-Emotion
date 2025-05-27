@@ -92,6 +92,7 @@ class CAM2FACE(QThread):
 
     def stop(self):
         self.ongoing = False
+        self.until_stable = False
         self.queue_rawframe.queue.clear()
         self.queue_sig_right.queue.clear()
         self.queue_sig_fore.queue.clear()
