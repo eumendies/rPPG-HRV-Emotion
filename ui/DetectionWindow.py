@@ -100,7 +100,7 @@ class DetectionWindow(QMainWindow):
     def start_detection(self):
         self.clear_frame()
         self.series_class.start()
-        self.series_class.change_data_num(256)
+        self.series_class.change_data_num(2048)
         self.stack_button_prompt.setCurrentIndex(1)
         self.detection_id = uuid.uuid4().hex
 
@@ -114,7 +114,8 @@ class DetectionWindow(QMainWindow):
     def crop_to_square(self, frame):
         height, width = frame.shape[:2]
         center_x, center_y = width // 2, height // 2
-        half_size = self.crop_size // 2
+        crop_size = min(width // 2, height // 2)
+        half_size = crop_size // 2
         x1, y1 = center_x - half_size, center_y - half_size
         x2, y2 = center_x + half_size, center_y + half_size
         return frame[y1:y2, x1:x2, :]

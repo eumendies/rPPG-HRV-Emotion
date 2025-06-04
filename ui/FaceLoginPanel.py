@@ -26,7 +26,7 @@ class FaceLoginPanel(QWidget):
         panel_layout.setContentsMargins(30, 60, 30, 60)
 
         # 标题
-        title_label = QLabel("rPPG情绪检测系统")
+        title_label = QLabel("非接触式情绪检测系统")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet(f"font-size: 20px; color: {MAIN_THEME};")
         title_label.setFixedHeight(60)
