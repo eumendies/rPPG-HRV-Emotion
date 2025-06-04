@@ -1,8 +1,21 @@
+import os
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.font_manager import FontProperties
 
-font = FontProperties(fname="SimHei.ttf", size=14)
+
+
+def get_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.normpath(os.path.join(base_path, relative_path))
+
+font = FontProperties(fname=get_path("data/SimHei.ttf"), size=14)
 
 
 def plot_ppg_signal(signal):

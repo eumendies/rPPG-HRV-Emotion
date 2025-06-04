@@ -8,13 +8,71 @@ Description:
 import numpy as np
 import scipy
 import seaborn as sns
-from obspy.signal.detrend import polynomial
+# from obspy.signal.detrend import polynomial
 from sklearn.decomposition import PCA
 from constants import ONE_MINUTE
 from constants import FFT_HR, PEAK_HR
 from scipy import signal
 
 sns.set()
+
+def polynomial(data, order, plot=False):
+    """
+    Removes a polynomial trend from the data.
+
+    :param data: The data to detrend. Will be modified in-place.
+    :type data: :class:`numpy.ndarray`
+    :param order: The order of the polynomial to fit.
+    :type order: int
+    :param plot: If True, a plot of the operation happening will be shown.
+        If a string is given that plot will be saved to the given file name.
+    :type plot: bool or str
+
+    .. note::
+
+        In a real world application please make sure to use the convenience
+        :meth:`obspy.core.trace.Trace.detrend` method.
+
+
+    .. rubric:: Example
+
+    >>> import obspy
+    >>> from obspy.signal.detrend import polynomial
+
+    Prepare some example data.
+
+    >>> tr = obspy.read()[0].filter("highpass", freq=2)
+    >>> tr.data += 6000 + 4 * tr.times() ** 2
+    >>> tr.data -= 0.1 * tr.times() ** 3 + 0.00001 * tr.times() ** 5
+    >>> data = tr.data
+
+    Remove the trend.
+
+    >>> polynomial(data, order=3, plot=True)  # doctest: +SKIP
+
+    .. plot::
+
+        import obspy
+        from obspy.signal.detrend import polynomial
+
+        tr = obspy.read()[0].filter("highpass", freq=2)
+        tr.data += 6000 + 4 * tr.times() ** 2 - 0.1 * tr.times() ** 3 - \
+            0.00001 * tr.times() ** 5
+
+        polynomial(tr.data, order=3, plot=True)
+    """
+    # Convert data if it's not a floating point type.
+    if not np.issubdtype(data.dtype, np.floating):
+        data = np.require(data, dtype=np.float64)
+
+    x = np.arange(len(data))
+    fit = np.polyval(np.polyfit(x, data, deg=order), x)
+
+    # if plot:
+    #     _plotting_helper(data, fit, plot)
+
+    data -= fit
+    return data
 
 
 class Series2rPPG:

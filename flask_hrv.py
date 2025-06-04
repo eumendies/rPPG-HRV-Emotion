@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from uuid import uuid4
 
 import numpy as np
@@ -14,6 +15,19 @@ app = Flask(__name__)
 
 host = "localhost"
 port = 6060
+
+# 获取程序的运行目录
+if getattr(sys, 'frozen', False):
+    # 打包后的程序运行目录
+    base_dir = os.path.dirname(sys.executable)
+else:
+    # 正常运行的程序目录
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 确保输出目录存在
+output_dir = os.path.join(base_dir, "output")
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
 
 @app.route('/calculate_emotion', methods=['POST'])
@@ -44,7 +58,9 @@ def calculate_emotion():
 
         # 绘图
         file_id = uuid4().hex
-        output_path = f"./output/{file_id}.png"
+        filename = f"{file_id}.png"
+        #output_path = f"./output/{file_id}.png"
+        output_path = os.path.join(output_dir, filename)
         get_path = f"http://{host}:{port}/image/{file_id}.png"
         plot_emotion_and_ppg(emotion_dict, bvp_filtered, output_path=output_path)
 
@@ -61,7 +77,8 @@ def calculate_emotion():
 
 @app.route('/image/<path:filename>')
 def get_image(filename):
-    path = f"./output/{filename}"
+    # path = f"./output/{filename}"
+    path = os.path.join(output_dir, filename)
     try:
         if not os.path.exists(path):
             return {'error': 'File not found'}, 404

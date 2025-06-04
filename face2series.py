@@ -1,5 +1,7 @@
 import copy
+import os
 import queue
+import sys
 import threading
 import time
 from queue import Queue
@@ -15,6 +17,14 @@ from entities import OrderedFrameQueue, NumberedFrame
 sns.set()
 
 
+def get_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.normpath(os.path.join(base_path, relative_path))
+
 class CAM2FACE(QThread):
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
     image_signal = pyqtSignal(object)  # 发送处理后的图像
@@ -25,7 +35,7 @@ class CAM2FACE(QThread):
         super().__init__()
         self.num_process_threads = num_process_threads
         self.detectors = [dlib.get_frontal_face_detector() for _ in range(num_process_threads)]
-        self.predictors = [dlib.shape_predictor('data/shape_predictor_81_face_landmarks.dat') for _ in
+        self.predictors = [dlib.shape_predictor(get_path('data/shape_predictor_81_face_landmarks.dat')) for _ in
                            range(num_process_threads)]
 
         # get frontal camera of computer and get fps
@@ -269,7 +279,7 @@ class CAM2FACE(QThread):
     def __del__(self):
         self.ongoing = False
         self.cam.release()
-        cv.destroyAllWindows()
+        # cv.destroyAllWindows()
 
     def get_progress(self):
         """收集数据进度"""
