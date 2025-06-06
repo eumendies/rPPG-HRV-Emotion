@@ -175,7 +175,11 @@ class DetectionWindow(QMainWindow):
 
     def output_video(self):
         video_name = f"student_{self.student_id}.mp4"
-        video_path = os.path.join("output", video_name)
+        output_dir = "output"
+        # 检查output目录是否存在，不存在则创建
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        video_path = os.path.join(output_dir, video_name)
         video_writer = cv2.VideoWriter(video_path, self.fourcc, 30, (self.crop_size, self.crop_size))
 
         first_frame_saved = False  # 用于判断是否已保存首帧
@@ -184,7 +188,7 @@ class DetectionWindow(QMainWindow):
         while not self.frame_queue.empty():
             frame = self.frame_queue.get()
             if not first_frame_saved:
-                first_frame_path = os.path.join("output", f"student_{self.student_id}_first_frame.png")
+                first_frame_path = os.path.join(output_dir, f"student_{self.student_id}_first_frame.png")
                 cv2.imwrite(first_frame_path, frame)  # 保存首帧
                 first_frame_saved = True
             video_writer.write(frame)
@@ -195,7 +199,7 @@ class DetectionWindow(QMainWindow):
             os.remove(video_path)
             os.remove(first_frame_path)
         else:
-            print("上传失败")
+            print(f"上传失败，{result}")
         
     def set_student_id(self, student_id):
         self.student_id = student_id
