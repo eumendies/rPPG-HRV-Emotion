@@ -21,7 +21,7 @@ from api import send_process_data, upload_video_file
 
 
 class DetectionWindow(QMainWindow):
-    def __init__(self, series_class=None, crop_size=850):
+    def __init__(self, series_class=None):
         super().__init__()
         self.student_id = None
         self.detection_id = None
@@ -29,10 +29,9 @@ class DetectionWindow(QMainWindow):
         self.setGeometry(100, 100, 1080, 720)
         self.init_ui()
 
-        self.crop_size = crop_size
         self.series_class = series_class
         self.series_class.image_signal.connect(self.display_image)
-        self.series_class.undetected_signal.connect(self.clear_frame)
+        self.series_class.detected_signal.connect(self.on_detected)
 
         # 帧队列，检测完毕后保存视频
         self.frame_queue = Queue()
@@ -53,6 +52,11 @@ class DetectionWindow(QMainWindow):
         panel_layout = QVBoxLayout()
         panel_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         panel_layout.setContentsMargins(30, 60, 30, 60)
+
+        self.undetected_label = QLabel("未检测到人脸")
+        self.undetected_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.undetected_label.setStyleSheet(f"font-size: 24px; color: {MAIN_THEME};")
+        panel_layout.addWidget(self.undetected_label)
 
         # 人脸识别区域
         square = SquareWidget(280, 5, MAIN_THEME)
@@ -90,7 +94,7 @@ class DetectionWindow(QMainWindow):
         self.stack_button_prompt.addWidget(start_button)
         self.stack_button_prompt.addWidget(prompt_text)
 
-        panel_layout.addWidget(self.stack_button_prompt)
+        panel_layout.addWidget(self.stack_button_prompt, 0, Qt.AlignmentFlag.AlignCenter)
         panel.setLayout(panel_layout)
 
         layout.addStretch()
@@ -98,7 +102,7 @@ class DetectionWindow(QMainWindow):
         layout.addStretch()
 
     def start_detection(self):
-        self.clear_frame()
+        self.frame_queue.queue.clear()
         self.series_class.start()
         self.series_class.change_data_num(2048)
         self.stack_button_prompt.setCurrentIndex(1)
@@ -114,8 +118,8 @@ class DetectionWindow(QMainWindow):
     def crop_to_square(self, frame):
         height, width = frame.shape[:2]
         center_x, center_y = width // 2, height // 2
-        crop_size = min(width // 2, height // 2)
-        half_size = crop_size // 2
+        self.crop_size = int(min(width // 1.5, height // 1.5))
+        half_size = self.crop_size // 2
         x1, y1 = center_x - half_size, center_y - half_size
         x2, y2 = center_x + half_size, center_y + half_size
         return frame[y1:y2, x1:x2, :]
@@ -196,8 +200,12 @@ class DetectionWindow(QMainWindow):
     def set_student_id(self, student_id):
         self.student_id = student_id
 
-    def clear_frame(self):
-        self.frame_queue.queue.clear()
+    def on_detected(self, detected):
+        if not detected:
+            self.undetected_label.show()
+            self.frame_queue.queue.clear()
+        else:
+            self.undetected_label.hide()
 
 
 if __name__ == "__main__":

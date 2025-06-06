@@ -88,6 +88,11 @@ def get_image(filename):
         return {'error': str(e)}, 500
 
 
+@app.route("/hello")
+def hello():
+    return "Hello, this is the HRV emotion analysis service!"
+
+
 if __name__ == '__main__':
     app.logger.setLevel(logging.INFO)
     app.run(host=host, port=port, debug=True)

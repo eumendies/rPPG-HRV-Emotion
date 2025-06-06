@@ -29,7 +29,7 @@ class CAM2FACE(QThread):
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
     image_signal = pyqtSignal(object)  # 发送处理后的图像
     features_signal = pyqtSignal(object)
-    undetected_signal = pyqtSignal()
+    detected_signal = pyqtSignal(bool)
 
     def __init__(self, num_process_threads=4) -> None:
         super().__init__()
@@ -75,10 +75,6 @@ class CAM2FACE(QThread):
             thread.start()
 
         while self.ongoing:
-            frame = self.masked_face_queue.get_frame()
-            if frame is not None:
-                self.image_signal.emit(frame)
-
             if (not self.until_stable
                     and self.queue_sig_fore.qsize() > self.stable_period
                     and self.queue_sig_right.qsize() > self.stable_period
@@ -108,6 +104,7 @@ class CAM2FACE(QThread):
         self.queue_sig_fore.queue.clear()
         self.queue_sig_left.queue.clear()
         self.queue_time.queue.clear()
+        self.masked_face_queue.reset()
 
     def change_data_num(self, data_num):
         self.FEATURE_WINDOW = data_num
@@ -118,7 +115,9 @@ class CAM2FACE(QThread):
             if not ret:
                 self.ongoing = False
                 break
-            self.queue_rawframe.put(NumberedFrame(frame, time.time()))
+            numbered_frame = NumberedFrame(frame, time.time())
+            self.queue_rawframe.put(numbered_frame)
+            self.image_signal.emit(numbered_frame)
 
     def roi_cal_process(self, thread_id):
         while self.ongoing:
@@ -129,6 +128,7 @@ class CAM2FACE(QThread):
             predictor = self.predictors[thread_id]
             masked_face, roi_left, roi_right, roi_fore = self.ROI(numbered_frame, detector, predictor)
             if roi_left is not None and roi_right is not None and roi_fore is not None:
+                self.detected_signal.emit(True)
                 # produce rgb hist of mask (removed black)
                 hist_left = self.rgb_hist(roi_left)
                 hist_right = self.rgb_hist(roi_right)
@@ -156,11 +156,11 @@ class CAM2FACE(QThread):
                     if self.queue_time.full():
                         self.fps = 1 / np.mean(np.diff(np.array(list(self.queue_time.queue))))  # 时间的一阶差分的平均值的倒数为fps
             else:
-                print("No face detected")
+                self.until_stable = False
                 self.queue_sig_left.queue.clear()
                 self.queue_sig_right.queue.clear()
                 self.queue_sig_fore.queue.clear()
-                self.undetected_signal.emit()
+                self.detected_signal.emit(False)
 
     def detect_landmarks(self, img, detector, predictor):
         """获取脸部关键点"""

@@ -22,12 +22,12 @@ def ppg_hrv(ppg_signal, sampling_rate):
 def calculate_emotion_scores(hrv_data):
     # 定义情绪字典，包含六种情绪及其初始得分为0
     emotion_scores = {
-        '愤怒': 0,
-        '厌恶': 0,
-        '恐惧': 0,
-        '快乐': 0,
-        '悲伤': 0,
-        '惊讶': 0
+        '愤怒': 0.0,
+        '厌恶': 0.0,
+        '恐惧': 0.0,
+        '快乐': 0.0,
+        '悲伤': 0.0,
+        '惊讶': 0.0
     }
 
     # 获取HRV时域、频域和非线性指标
@@ -131,27 +131,16 @@ def calculate_emotion_scores(hrv_data):
         anger_score = min(anger_score, happy_score - 0.5)
 
     # 重新计算情绪分数（确保分数在0-10范围内）
-    emotion_scores['愤怒'] = anger_score
-    emotion_scores['厌恶'] = disgust_score
-    emotion_scores['恐惧'] = fear_score
-    emotion_scores['快乐'] = happy_score
-    emotion_scores['悲伤'] = sad_score
-    emotion_scores['惊讶'] = surprise_score
-
-    # 检查情绪分数是否在合理范围内
-    for emotion in emotion_scores:
-        emotion_scores[emotion] = min(10, max(0, emotion_scores[emotion]))
+    emotion_scores['愤怒'] = min(10.0, max(random.Random().uniform(0.1, 0.5), anger_score))
+    emotion_scores['厌恶'] = min(10.0, max(random.Random().uniform(0.1, 0.5), disgust_score))
+    emotion_scores['恐惧'] = min(10.0, max(random.Random().uniform(0.1, 0.5), fear_score))
+    emotion_scores['快乐'] = min(10.0, max(random.Random().uniform(0.1, 0.5), happy_score))
+    emotion_scores['悲伤'] = min(10.0, max(random.Random().uniform(0.1, 0.5), sad_score))
+    emotion_scores['惊讶'] = min(10.0, max(random.Random().uniform(0.1, 0.5), surprise_score))
 
     # 如果所有情绪的分数都较低，认为心情平静，将所有情绪分数设为接近0的值
     if all(score <= 2 for score in [anger_score, disgust_score, fear_score, happy_score, sad_score, surprise_score]):
         emotion_scores = {emotion: random.Random().uniform(0.1, 0.5) for emotion in emotion_scores}
-    else:
-        emotion_scores['愤怒'] = anger_score
-        emotion_scores['厌恶'] = disgust_score
-        emotion_scores['恐惧'] = fear_score
-        emotion_scores['快乐'] = happy_score
-        emotion_scores['悲伤'] = sad_score
-        emotion_scores['惊讶'] = surprise_score
 
     return emotion_scores
 

@@ -28,7 +28,7 @@ def run_gui():
     login_window = LoginWindow()
     login_window.show()
 
-    detection_window = DetectionWindow(series_class=series_class, crop_size=250)
+    detection_window = DetectionWindow(series_class=series_class)
     login_window.close_signal.connect(detection_window.show)
     login_window.login_signal.connect(detection_window.set_student_id)
 

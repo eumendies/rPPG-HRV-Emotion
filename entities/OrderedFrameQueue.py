@@ -40,3 +40,8 @@ class OrderedFrameQueue:
         with self.mutex:
             if self.allow_frame_count < frame.frame_count:
                 self.queue.put((frame.frame_count, frame))
+
+    def reset(self):
+        with self.mutex:
+            self.queue.queue.clear()
+            self.allow_frame_count = 0
