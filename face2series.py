@@ -17,6 +17,21 @@ from entities import OrderedFrameQueue, NumberedFrame
 sns.set()
 
 
+def count_cameras():
+    """检测系统中有多少个可用的摄像头"""
+    max_cameras = 10  # 设置最大尝试数量
+    camera_count = 0
+
+    for index in range(max_cameras):
+        cap = cv.VideoCapture(index)
+        if cap.isOpened():
+            camera_count += 1
+            cap.release()
+        else:
+            break
+    return camera_count
+
+
 def get_path(relative_path):
     try:
         base_path = sys._MEIPASS
@@ -24,6 +39,7 @@ def get_path(relative_path):
         base_path = os.path.abspath(".")
 
     return os.path.normpath(os.path.join(base_path, relative_path))
+
 
 class CAM2FACE(QThread):
     """负责读取摄像头、识别三个ROI（左右脸颊和额头）、将RGB值转换为特征"""
@@ -39,7 +55,9 @@ class CAM2FACE(QThread):
                            range(num_process_threads)]
 
         # get frontal camera of computer and get fps
-        self.cam = cv.VideoCapture(0)
+        self.total_camera_count = count_cameras()
+        self.current_camera = 0
+        self.cam = cv.VideoCapture(self.current_camera)
         if not self.cam.isOpened():
             print('ERROR:  Unable to open webcam.  Verify that webcam is connected and try again.  Exiting.')
             self.cam.release()
@@ -67,10 +85,11 @@ class CAM2FACE(QThread):
 
     def run(self):
         self.ongoing = True
+
         self.capture_thread = threading.Thread(target=self.capture_process)
-        self.capture_thread.start()
         self.roi_cal_threads = [threading.Thread(target=self.roi_cal_process, args=(i,), daemon=True) for i in
                                 range(self.num_process_threads)]
+        self.capture_thread.start()
         for thread in self.roi_cal_threads:
             thread.start()
 
@@ -99,6 +118,9 @@ class CAM2FACE(QThread):
     def stop(self):
         self.ongoing = False
         self.until_stable = False
+        self.clear_queue()
+
+    def clear_queue(self):
         self.queue_rawframe.queue.clear()
         self.queue_sig_right.queue.clear()
         self.queue_sig_fore.queue.clear()
@@ -288,3 +310,22 @@ class CAM2FACE(QThread):
         return min(self.queue_sig_fore.qsize() / self.FEATURE_WINDOW,
                    self.queue_sig_left.qsize() / self.FEATURE_WINDOW,
                    self.queue_sig_right.qsize() / self.FEATURE_WINDOW)
+
+    def switch_camera(self):
+        next_camera = (self.current_camera + 1) % self.total_camera_count
+        if next_camera == self.current_camera:
+            return
+
+        self.ongoing = False
+        # 等待capture线程结束
+        if hasattr(self, 'capture_thread') and self.capture_thread.is_alive():
+            self.capture_thread.join(timeout=1.0)
+
+        # 释放当前摄像头
+        if hasattr(self, 'cam') and self.cam.isOpened():
+            self.cam.release()
+        self.current_camera = next_camera
+        self.cam = cv.VideoCapture(self.current_camera)
+        self.clear_queue()
+        self.start()
+

@@ -53,6 +53,13 @@ class DetectionWindow(QMainWindow):
         panel_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         panel_layout.setContentsMargins(30, 60, 30, 60)
 
+        # 切换摄像头按钮
+        self.camera_switch_button = QPushButton("切换摄像头")
+        self.camera_switch_button.clicked.connect(self.on_switch_camera)
+        self.camera_switch_button.setStyleSheet(
+            f"background-color: {MAIN_THEME}; color: white; border: none; padding: 10px 20px; border-radius: 5px;")
+        panel_layout.addWidget(self.camera_switch_button, 0, Qt.AlignmentFlag.AlignRight)
+
         self.undetected_label = QLabel("未检测到人脸")
         self.undetected_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.undetected_label.setStyleSheet(f"font-size: 24px; color: {MAIN_THEME};")
@@ -210,6 +217,13 @@ class DetectionWindow(QMainWindow):
             self.frame_queue.queue.clear()
         else:
             self.undetected_label.hide()
+
+    def on_switch_camera(self):
+        self.series_class.stop()
+        self.series_class.switch_camera()
+        self.series_class.start()
+        self.face.clear()
+        self.progress_bar.update_progress(0)
 
 
 if __name__ == "__main__":
